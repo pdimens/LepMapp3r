@@ -2,7 +2,7 @@
 
 ## This bash wrapper is will act like a liason to run LepMap3's various modules. Strongly recommended to run this in a screen environment. 
 
-echo "-- Initiating parent call module of lepmap3 --"
+echo "\n-- Initiating parent call module of lepmap3 --"
 printf '\nWhat is the name of the pedigree file? '
 read -r PEDIGREE
 echo -e "\n------------List of VCF files in directory------------"
@@ -12,11 +12,10 @@ printf 'What is the name of the filtered vcf file? '
 read -r VCFFILE
 java ParentCall2 data=${PEDIGREE} vcfFile=${VCFFILE} removeNonInformative=1 | gzip >data.call.gz
 
-
 echo "-- Initiating Filtering2 module --"
 zcat data.call.gz | java Filtering2 data=- dataTolerance=0.001 | gzip >data_f.call.gz
 
-echo "-- Initiating SeparateChromosomes2 --"
+echo "\n-- Initiating SeparateChromosomes2 --"
 echo -e "\nChromosome separation can be iterated over a range of LOD score limits to find the best map"
 printf 'What LOD limit do you want to start with? '
 read -r LODSTART
@@ -29,9 +28,9 @@ mkdir -p iter.maps
 for i in $(seq $LODSTART $LODEND)
 do
     zcat data_f.call.gz | java SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.LOD.$i.txt
-    sort iter.maps/map.$i.txt | uniq -c | sort -n > iter.maps/map.$i.summary.txt
+    sort iter.maps/map.LOD.$i.txt | uniq -c | sort -n > iter.maps/map.$i.summary.txt
 done
-echo -e "\nPlease examine the maps produced ("iter.maps/map.LOD.X.txt") and decide on the best map before proceeding"
+echo -e "\nExamine the maps produced ("iter.maps/map.LOD.X.txt") and decide on the best map before proceeding"
 echo "if using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
 echo "if not using a screen, press ctrl+z to pause followed by the "bg" command to put in the background. When ready, enter the "fg" command to bring LepMapp3r into the foreground again"
 echo "Press Enter to proceed"
@@ -61,16 +60,20 @@ read -r NUMITER
 printf 'This step runs in parallel. The number of chromosomes being run at once must be <= number CPUs '
 printf 'How many linkage groups would you like to order in parallel at once? (max CPUs=%s max LG=%s)' "$(nproc)" "$(NUMCHROM)"
 read NUMJOBS
-echo "Depending on your system, allotted CPUs, and number of iterations you want, this may take a WHILE."
 THREADS=$(( $numproc / $(( $NUMCHROM / 2 )) ))
-#SCALE=
-mkdir -p ordermarkers
+NUMLOCI=$(tail -n +2 iter.maps/iter.maps/map.LOD.$LODSTART.txt | wc -l)
+NUMINDS=$(( $(head -n 1 $PEDIGREE | awk '{print NF}') - 2 ))
+SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
+printf 'Data scaling will be set to %s based on %s markers and %s individuals' "$SCALEVAL" "$NUMLOCI" "NUMINDS"
+echo "Depending on your system, allotted CPUs, and number of iterations requested, this may take a WHILE. Feel free to detach the screen."
+# mkdir ordermarkers.`ls -d ordermarkers*/ | wc -l`
+mkdir -r ordermarkers/bestlikelihoods
 ordermarkers() {
     for j in $(seq 1 $NUMITER)
         do
         zcat data_f.call.gz | java OrderMarkers2 map=joinsingles.$BESTMAP \
         data=- numThreads=$THREADS \
-        scale=0.0128 \
+        scale=$SCALEVAL \
         chromosome=$1 > ordermarkers/ordered.$1.$j.txt
     done
 }
@@ -79,10 +82,32 @@ export -f ordermarkers
 
 seq 1 $NUMCHROM | parallel --jobs $NUMJOBS ordermarkers
 
+# get likelihoods
+for i in $(seq 1 $NUMCHROM)
+    do
+    for j in $(seq 1 $NUMITER)
+        do
+        LG="ordered.$i"
+        ITERUN="$j"
+        LIKELIHOOD=$(head -2 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 25-) 
+        echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> firstordered.likelihoods.txt
+    done
+done
+
+# sort by linkage group and likelihood
+sort firstordered.likelihoods.txt -k1,1 -k3,3nr > firstordered.likelihoods.sorted.txt
+
+# pull out best maps for each linkage group
+TOTALMAPS=$(cat firstordered.likelihoods.txt | wc -l)
+for i in $(seq 1 $NUMITER $TOTALMAPS); 
+    do
+    BESTMAP=$(sed -n ${i}p sorted.likelihoods.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
+    cp ordermarkers/$BESTMAP ordermarkers/bestlikelihoods
+done
 
 
 
-#### incomplete ####
+
 
 
 
@@ -128,4 +153,4 @@ seq 1 $NUMCHROM | parallel --jobs $NUMJOBS ordermarkers
 
 # LEPMAP3 IBD to check if we actually have fullsibs with 1% subsampling
 
-#zcat data.call.gz | awk '{if (NR==1) {print;print;print;print;print}; if (NR==1||rand()<0.01) print}'|java IBD data=- numThreads=15 >ibd_faster.txt#!/bin/bash
+#zcat data.call.gz | awk '{if (NR==1) {print;print;print;print;print}; if (NR==1||rand()<0.01) print}'|java IBD data=- numThreads=15 >ibd_faster.txt
