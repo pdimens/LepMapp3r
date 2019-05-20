@@ -2,18 +2,19 @@
 ## This bash wrapper is will act like a liason to run LepMap3's various modules. Strongly recommended to run this in a screen environment. 
 
 parentcall(){
+    printf "->"
     printf "\033[01;33m"
-    printf"\n-> ParentCall"
+    printf "\nParentCall"
     printf "\033[0m"
     echo -e "\n------------List of all files in directory------------"
     ls .
     echo -e "------------------------------------------------------"
-    printf '\nWhat is the name of the pedigree file? '
+    printf '\nWhat is the name of the pedigree file?  '
     read -r PEDIGREE
     if [ ! -f $PEDIGREE ]; then
         echo "Error: $PEDIGREE not found in working directory. Please check spelling." && exit 1
     fi
-    printf 'What is the name of the filtered vcf file? '
+    printf 'What is the name of the filtered vcf file?  '
     read -r VCFFILE
     if [ ! -f $VCFFILE ]; then
         echo "Error: $VCFFILE not found in working directory. Please check spelling." && exit 1
@@ -21,7 +22,7 @@ parentcall(){
     java $LM3PATH ParentCall2 data=${PEDIGREE} vcfFile=${VCFFILE} removeNonInformative=1 | gzip >data.call.gz
 
     echo -e "\n-- Initiating Filtering2 module --"
-    printf '\nSpecify your data tolerance (0.0001 to 0.01): '
+    printf '\nSpecify your data tolerance (0.0001 to 0.01):  '
     read -r DTOLERANCE
     zcat data.call.gz | java $LM3PATH Filtering2 data=- dataTolerance=$DTOLERANCE | gzip >data_f.call.gz
 }
@@ -29,17 +30,17 @@ parentcall(){
 export -f parentcall
 
 separatechromosomes(){
-    printf"\nParentCall->"
+    printf "\nParentCall->"
     printf "\033[01;33m" 
     printf " SeparateChromosomes\n" 
     printf "\033[0m"
     echo -e "\nChromosome separation can be iterated over a range of LOD score limits to find the best map"
-    printf 'What LOD limit do you want to start with? '
+    printf 'What LOD limit do you want to start with?  '
     read -r LODSTART
-    printf 'What LOD limit do you want to end with? '
+    printf 'What LOD limit do you want to end with?  '
     read -r LODEND 
     echo -e "\nThis may take a while depending on your data and the range of LOD score you want to explore."
-    printf 'How many CPUs would you like to use per iteration (max=%s)? ' "$(nproc)"
+    printf 'How many CPUs would you like to use per iteration (max=%s)?  ' "$(nproc)"
     read -r NBPROCS
     mkdir -p iter.maps
     for i in $(seq $LODSTART $LODEND)
@@ -64,16 +65,16 @@ joinsingles(){
     echo -e "\n------------List of map files in iter.maps/------------"
     find ./iter.maps -name "map.LOD.*.txt"  -printf "%f\t"
     echo -e "\n------------------------------------------------------\n"
-    printf 'Which map would you like to use (just the filename, exclude directory)? '
+    printf 'Which map would you like to use (just the filename, exclude directory)?  '
     read -r BESTMAP
     if [ ! -f iter.maps/$BESTMAP ]; then
         echo "Error: iter.maps/$BESTMAP not found in working directory. Please check spelling." && exit 1
     fi
-    printf 'LOD limit (4 is common)? '
+    printf 'LOD limit (4 is common)?  '
     read -r LODLIMIT
-    printf 'LOD difference cutoff (2 is common)? '
+    printf 'LOD difference cutoff (2 is common)?  '
     read -r LODDIFF
-    printf 'How many CPUs would you like to use per iteration (max=%s)? ' "$(nproc)"
+    printf 'How many CPUs would you like to use per iteration (max=%s)?  ' "$(nproc)"
     read -r PROCS
     DATAMAP=$(echo "MASTER.$BESTMAP")
     zcat data_f.call.gz | java $LM3PATH JoinSingles2All map=iter.maps/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > $DATAMAP
@@ -88,7 +89,7 @@ ordermarkers(){
     printf " OrderMarkers\n" 
     printf "\033[0m"
     echo -e "\nThis step will order the markers on linkage groups 1:N"
-    printf 'What distance-calculating method would you like to use (default, morgan, or kosambi)? '
+    printf 'What distance-calculating method would you like to use (default, morgan, or kosambi)?  '
     read -r DISTTYPE
     case $DISTTYPE in
         kosambi)
@@ -103,25 +104,25 @@ ordermarkers(){
             echo "using the default LepMap3 distance calculation method"
             DISTMETHOD=""
     esac
-    printf 'You want to order the markers on linkage groups 1 to... ? '
+    printf 'You want to order the markers on linkage groups 1 to... ?  '
     read -r NUMCHROM
-    printf 'How many iterations per linkage group? '
+    printf 'How many iterations per linkage group?  '
     read -r NUMITER
     printf 'This step runs in parallel. The number of chromosomes being run at once must be <= number CPUs '
-    printf '\nHow many linkage groups would you like to order in parallel at once (max CPUs=%s)? ' "$(nproc)"
+    printf '\nHow many linkage groups would you like to order in parallel at once (max CPUs=%s)?  ' "$(nproc)"
     read -r NUMJOBS
     THREADS=$(echo $(nproc) $NUMCHROM 1.5 | awk '{ printf("%.0f\n", $1/($2/$3)) }')
     NUMLOCI=$(tail -n +2 ./$DATAMAP | wc -l)
     NUMINDS=$(( $(head -n 1 $PEDIGREE | awk '{print NF}') - 2 ))
     SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
-    printf 'Data scaling will be set to %s based on %s markers and %s individuals\n' "$SCALEVAL" "$NUMLOCI" "NUMINDS"
+    printf 'Data scaling will be set to %s based on %s markers and %s individuals\n' "$SCALEVAL" "$NUMLOCI" "$NUMINDS"
     echo -e "Depending on  the number of input CPUs iterations, this may take a WHILE. \nFeel free to detach the screen."
     mkdir -p ordermarkers/bestlikelihoods
-    export LM3PATH
     export DATAMAP
     export THREADS
     export DISTMETHOD
     export SCALEVAL
+    export NUMITER
     runordermarkers() {
         for j in $(seq 1 $NUMITER)
             do
@@ -129,7 +130,7 @@ ordermarkers(){
         done
     }
     export -f runordermarkers
-    seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers
+    seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers > ordermarkers.log
 
     # get likelihoods
     for i in $(seq 1 $NUMCHROM)
@@ -159,6 +160,7 @@ ordermarkers(){
     printf "\033[01;33m" 
     printf " Trimming Ends\n" 
     printf "\033[0m"
+
     # run trimming script
     printf '\nAt what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
     read -r TRIMTHRESH
@@ -181,15 +183,14 @@ ordermarkers(){
             data=- numThreads=$THREADS $DISTMETHOD \
             scale=$SCALEVAL \
             evaluateOrder=$1 > ordermarkers.final/reorder.$(basename $1).$j.txt
+            ## NEED TO GET FILENAME EXAMPLE TO FINISH THE CUT COMMAND
             mv ordermarkers.final/reorder.$(basename $1).$j.txt ordermarkers.final/$(echo "reorder.$(basename $1).$j.txt" | cut -d'.' -f2)
         done
     }
     export -f reordermarkers
     
-    find ./ordermarkers/best.trimmed -name "trimmed" | parallel reordermarkers
+    find ./ordermarkers/best.trimmed -name "trimmed" | parallel reordermarkers > reordermarkers.log
 
-    A="$(echo 'one_two_three_four_five' | cut -d'_' -f2)"
-    
     # get reordered linkage group likelihoods
     for i in $(seq 1 $NUMCHROM)
         do
@@ -226,12 +227,10 @@ ordermarkers(){
 
 export -f ordermarkers
 
-
-
-
 # Run everything
 if [ $# -eq 0 ]; then
     LM3PATH=$(echo "-cp /bin/LM3")
+    export LM3PATH
     if [ ! -f "data_f.call.gz" ]; then
         parentcall && separatechromosomes && joinsingles && ordermarkers 
     else
