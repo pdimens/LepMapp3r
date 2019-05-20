@@ -6,5 +6,4 @@ As of yet incomplete.
 To do:
  - include basic installation script to install into $PATH
  - convert java calls to call from $PATH
- - integrate R pruning script
- - add reordering
+ - add reordering (incomplete)
