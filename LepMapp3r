@@ -2,135 +2,181 @@
 
 ## This bash wrapper is will act like a liason to run LepMap3's various modules. Strongly recommended to run this in a screen environment. 
 
-echo "\n-- Initiating parent call module of lepmap3 --"
-printf '\nWhat is the name of the pedigree file? '
-read -r PEDIGREE
-echo -e "\n------------List of VCF files in directory------------"
-ls *.vcf
-echo -e "------------------------------------------------------\n"
-printf 'What is the name of the filtered vcf file? '
-read -r VCFFILE
-java ParentCall2 data=${PEDIGREE} vcfFile=${VCFFILE} removeNonInformative=1 | gzip >data.call.gz
+parentcall(){
+    echo "\n-- Initiating parent call module of lepmap3 --"
+    printf '\nWhat is the name of the pedigree file? '
+    read -r PEDIGREE
+    echo -e "\n------------List of VCF files in directory------------"
+    ls *.vcf
+    echo -e "------------------------------------------------------\n"
+    printf 'What is the name of the filtered vcf file? '
+    read -r VCFFILE
+    java ParentCall2 data=${PEDIGREE} vcfFile=${VCFFILE} removeNonInformative=1 | gzip >data.call.gz
 
-echo "-- Initiating Filtering2 module --"
-zcat data.call.gz | java Filtering2 data=- dataTolerance=0.001 | gzip >data_f.call.gz
-
-echo "\n-- Initiating SeparateChromosomes2 --"
-echo -e "\nChromosome separation can be iterated over a range of LOD score limits to find the best map"
-printf 'What LOD limit do you want to start with? '
-read -r LODSTART
-printf 'What LOD limit do you want to end with? '
-read -r LODEND 
-echo -e "\nThis may take a while depending on your data and the range of LOD score you want to explore."
-printf 'How many CPUs would you like to use per iteration (max=%s)? ' "$(nproc)"
-read -r NBPROCS
-mkdir -p iter.maps
-for i in $(seq $LODSTART $LODEND)
-do
-    zcat data_f.call.gz | java SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.LOD.$i.txt
-    sort iter.maps/map.LOD.$i.txt | uniq -c | sort -n > iter.maps/map.$i.summary.txt
-done
-echo -e "\nExamine the maps produced ("iter.maps/map.LOD.X.txt") and decide on the best map before proceeding"
-echo "if using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
-echo "if not using a screen, press ctrl+z to pause followed by the "bg" command to put in the background. When ready, enter the "fg" command to bring LepMapp3r into the foreground again"
-echo "Press Enter to proceed"
-read PROCEED
-
-echo-e  "\n-- Initiating JoinSingles --"
-echo -e "\n------------List of map files in iter.maps/------------"
-ls iter.maps/map.LOD.*.txt
-echo -e "------------------------------------------------------\n"
-printf 'Which map would you like to use (just the filename, exclude directory)? '
-read -r BESTMAP
-printf 'LOD limit? (4 is common)'
-read -r LODLIMIT
-printf 'LOD difference cutoff? (2 is common)'
-read -r LODDIFF
-printf 'How many CPUs would you like to use per iteration? (max=%s)' "$(nproc)"
-read -r PROCS
-zcat data_f.call.gz | java JoinSingles2All map=iter.maps/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > joinsingles.$BESTMAP 
-cut -f 1 joinsingles.$BESTMAP |sort|uniq -c|sort -n
-
-echo-e  "\n-- Initiating OrderMarkers2 --"
-echo "This step will order the markers on chromosomes/linkage groups 1:N"
-printf 'How many linkage groups from your map would you like to order the markers on? '
-read -r NUMCRHOM
-printf 'How many iterations per linkage group? '
-read -r NUMITER
-printf 'This step runs in parallel. The number of chromosomes being run at once must be <= number CPUs '
-printf 'How many linkage groups would you like to order in parallel at once? (max CPUs=%s max LG=%s)' "$(nproc)" "$(NUMCHROM)"
-read NUMJOBS
-THREADS=$(( $numproc / $(( $NUMCHROM / 2 )) ))
-NUMLOCI=$(tail -n +2 iter.maps/iter.maps/map.LOD.$LODSTART.txt | wc -l)
-NUMINDS=$(( $(head -n 1 $PEDIGREE | awk '{print NF}') - 2 ))
-SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
-printf 'Data scaling will be set to %s based on %s markers and %s individuals' "$SCALEVAL" "$NUMLOCI" "NUMINDS"
-echo "Depending on your system, allotted CPUs, and number of iterations requested, this may take a WHILE. Feel free to detach the screen."
-# mkdir ordermarkers.`ls -d ordermarkers*/ | wc -l`
-mkdir -r ordermarkers/bestlikelihoods
-ordermarkers() {
-    for j in $(seq 1 $NUMITER)
-        do
-        zcat data_f.call.gz | java OrderMarkers2 map=joinsingles.$BESTMAP \
-        data=- numThreads=$THREADS \
-        scale=$SCALEVAL \
-        chromosome=$1 > ordermarkers/ordered.$1.$j.txt
-    done
+    echo "-- Initiating Filtering2 module --"
+    zcat data.call.gz | java Filtering2 data=- dataTolerance=0.001 | gzip >data_f.call.gz
 }
 
-export -f ordermarkers
+export -f parentcall
 
-seq 1 $NUMCHROM | parallel --jobs $NUMJOBS ordermarkers
-
-# get likelihoods
-for i in $(seq 1 $NUMCHROM)
-    do
-    for j in $(seq 1 $NUMITER)
+separatechromosomes(){
+    echo "\n-- Initiating SeparateChromosomes2 --"
+    echo -e "\nChromosome separation can be iterated over a range of LOD score limits to find the best map"
+    printf 'What LOD limit do you want to start with? '
+    read -r LODSTART
+    printf 'What LOD limit do you want to end with? '
+    read -r LODEND 
+    echo -e "\nThis may take a while depending on your data and the range of LOD score you want to explore."
+    printf 'How many CPUs would you like to use per iteration (max=%s)? ' "$(nproc)"
+    read -r NBPROCS
+    mkdir -p iter.maps
+    for i in $(seq $LODSTART $LODEND)
         do
-        LG="ordered.$i"
-        ITERUN="$j"
-        LIKELIHOOD=$(head -2 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 25-) 
-        echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> firstordered.likelihoods.txt
+        zcat data_f.call.gz | java SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.LOD.$i.txt
+        sort iter.maps/map.LOD.$i.txt | uniq -c | sort -n > iter.maps/map.$i.summary.txt
     done
-done
+    echo -e "\nExamine the maps produced ("iter.maps/map.LOD.X.txt") and decide on the best map before proceeding"
+    echo "if using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
+    echo "if not using a screen, press ctrl+z to pause followed by the "bg" command to put in the background. When ready, enter the "fg" command to bring LepMapp3r into the foreground again"
+    echo "Press Enter to proceed"
+    read PROCEED
+}
 
-# sort by linkage group and likelihood
-sort firstordered.likelihoods.txt -k1,1 -k3,3nr > firstordered.likelihoods.sorted.txt
+export -f separatechromosomes
 
-# pull out best maps for each linkage group
-TOTALMAPS=$(cat firstordered.likelihoods.txt | wc -l)
-for i in $(seq 1 $NUMITER $TOTALMAPS); 
-    do
-    BESTMAP=$(sed -n ${i}p sorted.likelihoods.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
-    cp ordermarkers/$BESTMAP ordermarkers/bestlikelihoods
-done
+joinsingles(){
+    echo-e  "\n-- Initiating JoinSingles --"
+    echo -e "\n------------List of map files in iter.maps/------------"
+    ls iter.maps/map.LOD.*.txt
+    echo -e "------------------------------------------------------\n"
+    printf 'Which map would you like to use (just the filename, exclude directory)? '
+    read -r BESTMAP
+    printf 'LOD limit? (4 is common)'
+    read -r LODLIMIT
+    printf 'LOD difference cutoff? (2 is common)'
+    read -r LODDIFF
+    printf 'How many CPUs would you like to use per iteration? (max=%s)' "$(nproc)"
+    read -r PROCS
+    mkdir -p joined.singles
+    zcat data_f.call.gz | java JoinSingles2All map=iter.maps/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > joined.singles/joinsingles.$BESTMAP 
+    cut -f 1 joined.singles/joinsingles.$BESTMAP | sort | uniq -c | sort -n
+}
 
+export -f joinsingles
 
+ordermarkers(){
+    echo-e  "\n-- Initiating OrderMarkers2 --"
+    echo "This step will order the markers on linkage groups 1:N"
+    printf 'What distance-calculating method would you like to use (------, kosambi, or -------)? '
+    read -r DISTTYPE
+    if $DISTTYPE == kosambi
+        do
+        DISTMETHOD=$(echo "useKosambi=1")
+    elif $DISTTYPE == ------
+        do
+        DISTMETHOD=$(echo "useXXXXX=1")
+    else
+        DISTMETHOD=$(echo "")
+    done
+    printf 'You want to order the markers on linkage groups 1 to... ? '
+    read -r NUMCRHOM
+    printf 'How many iterations per linkage group? '
+    read -r NUMITER
+    printf 'This step runs in parallel. The number of chromosomes being run at once must be <= number CPUs '
+    printf 'How many linkage groups would you like to order in parallel at once? (max CPUs=%s max LG=%s)' "$(nproc)" "$(NUMCHROM)"
+    read NUMJOBS
+    THREADS=$(( $numproc / $(( $NUMCHROM / 2 )) ))
+    NUMLOCI=$(tail -n +2 iter.maps/$BESTMAP | wc -l)
+    NUMINDS=$(( $(head -n 1 $PEDIGREE | awk '{print NF}') - 2 ))
+    SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
+    printf 'Data scaling will be set to %s based on %s markers and %s individuals' "$SCALEVAL" "$NUMLOCI" "NUMINDS"
+    echo "Depending on your system, allotted CPUs, and number of iterations requested, this may take a WHILE. Feel free to detach the screen."
+    # mkdir ordermarkers.`ls -d ordermarkers*/ | wc -l`
+    mkdir -r -p ordermarkers/bestlikelihoods
+    runordermarkers() {
+        for j in $(seq 1 $NUMITER)
+            do
+            zcat data_f.call.gz | java OrderMarkers2 map=joined.singles/joinsingles.$BESTMAP \
+            data=- numThreads=$THREADS $DISTMETHOD \
+            scale=$SCALEVAL \
+            chromosome=$1 > ordermarkers/ordered.$1.$j.txt
+        done
+    }
+    export -f runordermarkers
+    
+    seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers
 
+    # get likelihoods
+    for i in $(seq 1 $NUMCHROM)
+        do
+        for j in $(seq 1 $NUMITER)
+            do
+            LG="ordered.$i"
+            ITERUN="$j"
+            LIKELIHOOD=$(head -2 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 25-) 
+            echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers/likelihoods.txt
+        done
+    done
 
+    # sort by linkage group and likelihood
+    sort ordermarkers/likelihoods.txt -k1,1 -k3,3nr > ordermarkers/likelihoods.sorted.txt
 
+    # pull out best maps for each linkage group
+    TOTALMAPS=$(cat ordermarkers/likelihoods.txt | wc -l)
+    echo "Best ordered maps:"
+    for i in $(seq 1 $NUMITER $TOTALMAPS); 
+        do
+        LIKELYMAP=$(sed -n ${i}p ordermarkers/likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
+        echo "$LIKELYMAP.txt"
+        cp ordermarkers/$LIKELYMAP.txt ordermarkers/bestlikelihoods
+    done
 
+    # run pruning script
+    echo -e "\nTrimming each map of ambiguously ordered marker clusters at the ends"
+    printf 'At what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
+    read -r TRIMTHRESH
+    Rscript /bin/lepmapQA.r ./ordermarkers/bestlikelihoods ordered $TRIMTHRESH
 
+    # reorder the trimmed markers
+    mkdir -r -p ordermarkers.final/bestlikelihoods
+    echo "Reordering the trimmed markers. This will take about as long as before."
+    reordermarkers() {
+        for j in $(seq 1 $NUMITER)
+            do
+            zcat data_f.call.gz | java OrderMarkers2 map=joined.singles/joinsingles.$BESTMAP \
+            data=- numThreads=$THREADS $DISTMETHOD \
+            scale=$SCALEVAL \
+            chromosome=$1 > ordermarkers/ordered.$1.$j.txt
+        done
+    }
+    export -f reordermarkers
+    
+    seq 1 $NUMCHROM | parallel --jobs $NUMJOBS reordermarkers
 
+    # get likelihoods
+    for i in $(seq 1 $NUMCHROM)
+        do
+        for j in $(seq 1 $NUMITER)
+            do
+            LG="ordered.$i"
+            ITERUN="$j"
+            LIKELIHOOD=$(head -2 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 25-) 
+            echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers.final/reordered.likelihoods.txt
+        done
+    done
 
-#zcat data_f.call.gz | java OrderMarkers2 map=map9_joinsingles_iterated.txt \
-#data=- numThreads=30 chromosome=1 scale=0.01 evaluateOrder=filteredmarkers/order.1.7.txt sexAveraged=1 > orderedmarkers2/neworder1.txt
-#improveOrder=0
+    # sort by linkage group and likelihood
+    sort ordermarkers.final/reordered.likelihoods.txt -k1,1 -k3,3nr > ordermarkers.final/reordered.likelihoods.sorted.txt
 
-
-### for ordering markers the first time, chromosomes 1-24, done 30x each
-#for i in {1..24}
-#    do
-#    for j in {1..30}
-#        do
-#        zcat data_f.call.gz | java OrderMarkers2 map=map30_joinsingles_iterated.txt \
-#        data=- numThreads=30 \
-#        chromosome=$i
-#        scale=0.0128 > orderedmarkers/order.$i.$j.txt
-#    done
-#done
-
-
+    # pull out best maps for each linkage group
+    TOTALMAPS=$(cat ordermarkers.final/reordered.likelihoods.sorted.txt | wc -l)
+    echo "Best reordered maps:"
+    for i in $(seq 1 $NUMITER $TOTALMAPS); 
+        do
+        LIKELYMAP=$(sed -n ${i}p ordermarkers.final/reordered.likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
+        echo "$LIKELYMAP.txt"
+        cp ordermarkers/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
+    done
 
 #for file in filteredmarkers/order*.txt
 #    do
@@ -144,13 +190,39 @@ done
 #done
 
 ## calculate map distance and sex specific map distance
+    mkdir -p final.distances
+    for lgfile in ./ordermarkers.final/bestlikelihoods/order*.txt
+    do
+        zcat data_f.call.gz | java OrderMarkers2 data=- evaluateOrder=$lgfile  improveOrder=0 $DISTMETHOD > final.distances/$file.distance
+        zcat data_f.call.gz | java OrderMarkers2 data=- evaluateOrder=$lgfile  improveOrder=0 sexAveraged=1 $DISTMETHOD > final.distances/$file.sexdistance
+    done
+}
 
-#for file in ./order*.txt
-#do
-#    zcat data_f.call.gz | java OrderMarkers2 data=- evaluateOrder=$file  improveOrder=0 useKosambi=1 > distances/$file.distance
-#    zcat data_f.call.gz | java OrderMarkers2 data=- evaluateOrder=$file  improveOrder=0 sexAveraged=1 useKosambi=1 > distances/$file.sexdistance
-#done
+export -f ordermarkers
 
-# LEPMAP3 IBD to check if we actually have fullsibs with 1% subsampling
+# Run everything
+if [ $# -eq 0 ]; then
+    mkdir -r iter.maps joined.singles ordermarkers/bestlikelihoods ordermarkers.final/bestlikelihoods 
+    parentcall && separate && joinsingles && ordermarkers 
+    exit 
+fi
 
-#zcat data.call.gz | awk '{if (NR==1) {print;print;print;print;print}; if (NR==1||rand()<0.01) print}'|java IBD data=- numThreads=15 >ibd_faster.txt
+case "$1" in
+        help | --help | ? | -h)
+            WRITE A BUNCH OF STUFF HERE
+            ;;
+        separate)
+            separatechromosomes
+            ;;
+        joinsingles)
+            joinsingles
+            ;;
+        order)
+            ordermarkers
+            ;;
+        *)
+            echo "[usage] LepMapp3r <module.to.start.with>"
+            echo "[modules] parentcall(leave blank) | separate | joinsingles | order"
+            echo "[example] LepMapp3r separate"
+            exit 1
+esac
