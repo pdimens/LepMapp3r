@@ -91,7 +91,6 @@ ordermarkers(){
     SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
     printf 'Data scaling will be set to %s based on %s markers and %s individuals' "$SCALEVAL" "$NUMLOCI" "NUMINDS"
     echo "Depending on your system, allotted CPUs, and number of iterations requested, this may take a WHILE. Feel free to detach the screen."
-    # mkdir ordermarkers.`ls -d ordermarkers*/ | wc -l`
     mkdir -r -p ordermarkers/bestlikelihoods
     runordermarkers() {
         for j in $(seq 1 $NUMITER)
@@ -207,17 +206,22 @@ if [ $# -eq 0 ]; then
     exit 
 fi
 
+## Run LepMap3 starting from a specific module and continue to the end ##
+# make all folders in advance to force an early error if they already exist
 case "$1" in
         help | --help | ? | -h)
             WRITE A BUNCH OF STUFF HERE
             ;;
         separate)
-            separatechromosomes
+            mkdir -r iter.maps joined.singles ordermarkers/bestlikelihoods ordermarkers.final/bestlikelihoods
+            separate && joinsingles && ordermarkers
             ;;
         joinsingles)
-            joinsingles
+            mkdir -r iter.maps joined.singles ordermarkers/bestlikelihoods ordermarkers.final/bestlikelihoods
+            joinsingles && ordermarkerss
             ;;
         order)
+            mkdir -r iter.maps joined.singles ordermarkers/bestlikelihoods ordermarkers.final/bestlikelihoods
             ordermarkers
             ;;
         *)
