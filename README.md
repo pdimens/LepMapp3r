@@ -1,4 +1,4 @@
-# LepMapp3r - NOT YET READY FOR USE
+![alt text](https://github.com/pdimens/LepMapp3r/blob/master/LepMapp3r.png)
 #### Interactive dDocent-like bash wrapper for using LepMap3 to create linkage maps
 
 LepMapp3r is a wrapper for LepMap3 (Rasta 2017) intended to link the modules together into a single workflow. To use it correctly, LepMap3 needs to be installed in `/bin/LM3`, however you can always modify LepMapp3r to point to where your installation is by editing `line 4`. Additionally, you will need LepMapp3rQA.r installed in `/bin` as well, or wherever you want (so long as you change the location on line `138`). To use LepMapp3r, simply run the command without any arguments.
