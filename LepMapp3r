@@ -143,12 +143,16 @@ ordermarkers(){
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers/likelihoods.txt
         done
     done
+}
 
-    # sort by linkage group and likelihood
+export -f ordermarkers
+
+trimming(){    # sort by linkage group and likelihood
     sort ordermarkers/likelihoods.txt -k1,1 -k3,3nr > ordermarkers/likelihoods.sorted.txt
 
     # pull out best maps for each linkage group
     TOTALMAPS=$(cat ordermarkers/likelihoods.txt | wc -l)
+    NUMITER=$(ls ordermarkers/ordered.1.*.txt | wc -l) 
     echo "Best ordered maps:"
     for i in $(seq 1 $NUMITER $TOTALMAPS); 
         do
@@ -165,31 +169,60 @@ ordermarkers(){
     printf '\nAt what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
     read -r TRIMTHRESH
     mkdir -p ./ordermarkers/best.trimmed
-    Rscript /bin/LepMapp3rQA.r ./ordermarkers/bestlikelihoods ordered $TRIMTHRESH
-    mv ./ordermarkers/bestlikelihoods/trimmed* bad.markers.txt ./ordermarkers/best.trimmed
+    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH
+    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/best.trimmed
+}    
+
+export -f trimming
     
-    # reorder the trimmed markers
-    mkdir -r -p ordermarkers.final/bestlikelihoods
-    printf"\nParentCall->SeparateChromosomes->JoinSingles->OrderMarkers->Trimming Ends->"
+# reorder the trimmed markers
+reordering(){
+    mkdir -p ordermarkers.final/bestlikelihoods
+    printf "\nParentCall->SeparateChromosomes->JoinSingles->OrderMarkers->Trimming Ends->"
     printf "\033[01;33m" 
     printf " Reordering\n" 
     printf "\033[0m"
+    NUMITER=$(ls ordermarkers/ordered.1.*.txt | wc -l)
+    TOTALFILES=$(ls ordermarkers/ordered.*.txt | wc -l) 
+    NUMCHROM=$(echo $NUMITER $TOTALFILES | awk '{ print $2/$1 }')
+    THREADS=$(echo $(nproc) $NUMCHROM 1.5 | awk '{ printf("%.0f\n", $1/($2/$3)) }')
+    NUMINDS=$(( $(head -n 1 $PEDIGREE | awk '{print NF}') - 2 ))
+    NUMLOCI=$(tail -n +2 ./$DATAMAP | wc -l)
+    SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
+    printf 'What distance-calculating method would you like to use (default, morgan, or kosambi)?  '
+    read -r DISTTYPE
+    case $DISTTYPE in
+        kosambi)
+            echo "using the Kosambi distance function"
+            DISTMETHOD="useKosambi=1"
+        ;;
+        morgan)
+            DISTMETHOD="useMorgan=1"
+            echo "using Morgan linear distance"
+        ;;
+        *)
+            echo "using the default LepMap3 distance calculation method"
+            DISTMETHOD=""
+    esac
     echo "This will take about as long as before. PAUSING"
     read PROCEED
+    export DATAMAP
+    export THREADS
+    export DISTMETHOD
+    export SCALEVAL
+    export NUMITER
     reordermarkers() {
         for j in $(seq 1 $NUMITER)
             do
             zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP \
             data=- numThreads=$THREADS $DISTMETHOD \
             scale=$SCALEVAL \
-            evaluateOrder=$1 > ordermarkers.final/reorder.$(basename $1).$j.txt
-            ## NEED TO GET FILENAME EXAMPLE TO FINISH THE CUT COMMAND
-            mv ordermarkers.final/reorder.$(basename $1).$j.txt ordermarkers.final/$(echo "reorder.$(basename $1).$j.txt" | cut -d'.' -f2)
+            evaluateOrder=$1 > ordermarkers.final/$(echo "reorder.$(basename $1).$j.txt" | cut -d'.' -f1,4,7,8)
         done
     }
     export -f reordermarkers
     
-    find ./ordermarkers/best.trimmed -name "trimmed" | parallel reordermarkers > reordermarkers.log
+    find ./ordermarkers/best.trimmed -name "trimmed.*.txt" | parallel reordermarkers > reordermarkers.log
 
     # get reordered linkage group likelihoods
     for i in $(seq 1 $NUMCHROM)
@@ -225,17 +258,17 @@ ordermarkers(){
     done
 }
 
-export -f ordermarkers
+export -f reordering
 
 # Run everything
 if [ $# -eq 0 ]; then
     LM3PATH=$(echo "-cp /bin/LM3")
     export LM3PATH
     if [ ! -f "data_f.call.gz" ]; then
-        parentcall && separatechromosomes && joinsingles && ordermarkers 
+        parentcall && separatechromosomes && joinsingles && ordermarkers && trimming && reordering
     else
         if [ ! -d "iter.maps" ]; then
-            separatechromosomes && joinsingles && ordermarkers 
+            separatechromosomes && joinsingles && ordermarkers && trimming && reordering
         elif test -n "$(find ./ -maxdepth 1 -name 'MASTER.map.LOD.*.txt' -print -quit)"; then
             echo -e "\n------------List of all files in working directory------------"
             ls .
@@ -250,11 +283,17 @@ if [ $# -eq 0 ]; then
             if [ ! -f $BESTMAP ]; then
                 echo "Error: $DATAMAP not found in working directory. Please check spelling." && exit 1
             else
-            DATAMAP=$(echo "$BESTMAP")
+                DATAMAP=$(echo "$BESTMAP")
             fi
-            ordermarkers
+            if [ ! -d "ordermarkers" ]; then
+                ordermarkers && trimming && reordering
+            elif [ "$(ls -A "ordermarkers/best.trimmed" )" ]; then
+                reordering
+            else
+                trimming && reordering
+            fi
         else
-            joinsingles && ordermarkers
+            joinsingles && ordermarkers && trimming && reordering
         fi
     fi
     exit 
