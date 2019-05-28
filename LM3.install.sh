@@ -17,7 +17,7 @@ echo -e "File\tLocation"
 echo -e "LepMapp3r\t/bin"
 for LM3FILE in $(ls /bin/LM3/*)
 do
-    echo -e "$LM3FILE\t$(dirname $LM3FILE)"
+    echo -e "$(basename $LM3FILE)\t$(dirname $LM3FILE)"
 done
 
 echo "Installation complete! You may now safely delete the entire LepMapp3r folder"
