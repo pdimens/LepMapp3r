@@ -8,8 +8,8 @@ unzip LepMap3.zip
 
 echo "Copying files to PATH locations..."
 mkdir LM3
-chmod +x LepMapp3r/*
-cp ./bin/* LepMapper/LepMapp3rQA.r LM3
+chmod +x ./*
+cp ./bin/* LepMapp3rQA.r LM3
 sudo mv LM3 LepMapp3r /bin
 
 echo "[Installation summary]"
