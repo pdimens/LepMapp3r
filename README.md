@@ -13,6 +13,7 @@ A simple installation script script has been provided to download and install `L
 - `awk`
 - `R`
 - `sudo` privileges (but installation and scripts can be modified!)
+- `screen` (optional but strongly encouraged)
 
 #### Basic system-wide installation
 ```bash
@@ -21,10 +22,13 @@ cd LepMapp3r && chmod +x LM3.install.sh
 ./LM3.install.sh
 ```
 
+### Before you begin
+Please read through [the LepMap3 manual](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/#lep-map3-documentation). You will need to create a pedigree file from your data and have your filtered VCF file ready to go in the working directory.
+
 ## LepMapp3r workflow
 `ParentCall2` -> `SeparateChromosomes2` -> `JoinSingles2ALL` -> `OrderMarkers2` -> Trimming Ends -> `OrderMarkers2`
 
-By default, if you run LepMapp3r without arguments it will start at `ParentCall2` and work through until the end. Ordering markers may take a while, so it is recommended to run LepMapp3r in a `screen` environment. LepMapp3r creates several folders during operation, and for safety, it is made to identify if these folders exist so as to skip that step and not overwrite data. 
+By default, if you run LepMapp3r for the first time without arguments it will start at `ParentCall2` and work through until the end. Ordering markers may take a while, so it is recommended to run LepMapp3r in a `screen` environment. LepMapp3r creates several folders during operation, and for safety, it is made to identify if these folders exist so as to skip that step and not overwrite data. 
 
 ## Usage
 To use LepMapp3r, simply run the command with no arguments.
