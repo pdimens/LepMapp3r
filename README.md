@@ -1,6 +1,6 @@
 ![LepMapp3r](https://github.com/pdimens/LepMapp3r/blob/master/LepMapp3r.png)
 #### Interactive bash wrapper for using LepMap3 to create linkage maps
-LepMapp3r is a wrapper for LepMap3 [(Rasta 2017)](https://academic.oup.com/bioinformatics/article/33/23/3726/4061277) intended to link the modules together into a single workflow. To use it correctly, LepMap3 and LepMapperQA.r needs to be installed in `/bin/LM3`, however you can always modify LepMapp3r to point to where your installation is by editing Lines `173` and`267`. To use LepMapp3r, simply run the command with no arguments. LepMapp3r is made for convenience, but it is **not** a replacement for reading the docs and learning how to use LepMap3 correctly. Find the LepMap3 wiki [here](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/#lep-map3-documentation).
+LepMapp3r is a wrapper for LepMap3 [(Rasta 2017)](https://academic.oup.com/bioinformatics/article/33/23/3726/4061277) intended to link the modules together into a single workflow. To use it correctly, LepMap3 and LepMapperQA.r needs to be installed in `/bin/LM3`, however you can always modify LepMapp3r to point to where your installation is by editing Lines `173` and`267`. LepMapp3r is made for convenience, but it is **not** a replacement for reading the docs and learning how to use LepMap3 correctly. Find the LepMap3 wiki [here](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/#lep-map3-documentation).
 
 ### Installation
 An simple installation script script has been provided to download and install `LepMap3`, `LepMapp3r`, and `LepMapp3rQA` onto a system in the correct `$PATH`.
@@ -25,6 +25,12 @@ cd LepMapp3r && chmod +x LM3.install.sh
 `ParentCall2` -> `SeparateChromosomes2` -> `JoinSingles2ALL` -> `OrderMarkers2` -> Trimming Ends -> `OrderMarkers2`
 
 By default, if you run LepMapp3r without arguments it will start at `ParentCall2` and work through until the end. Ordering markers may take a while, so it is recommended to run LepMapp3r in a `screen` environment. LepMapp3r creates several folders during operation, and for safety, it is made to identify if these folders exist so as to skip that step and not overwrite data. 
+
+## Usage
+To use LepMapp3r, simply run the command with no arguments.
+```
+LepMapp3r
+```
 Running `LepMapp3r` with any arguments e.g. `help` `-h` `--help` `potato` `axolotl` will invoke the help text.
 
 ### Be aware
