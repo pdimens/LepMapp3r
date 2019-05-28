@@ -1,11 +1,20 @@
 ![alt text](https://github.com/pdimens/LepMapp3r/blob/master/LepMapp3r.png)
 #### Interactive bash wrapper for using LepMap3 to create linkage maps
-#### NOT YET READY FOR USE
 LepMapp3r is a wrapper for LepMap3 [(Rasta 2017)](https://academic.oup.com/bioinformatics/article/33/23/3726/4061277) intended to link the modules together into a single workflow. To use it correctly, LepMap3 and LepMapperQA.r needs to be installed in `/bin/LM3`, however you can always modify LepMapp3r to point to where your installation is by editing Lines `173` and`267`. To use LepMapp3r, simply run the command with no arguments.
 
 ### Installation
 An simple installation script script has been provided (still working on it) to download and install `LepMap3`, `LepMapp3r`, and `LepMapp3rQA` onto a system in the correct `$PATH`.
 
+#### Requirements
+- `GNU parallel`
+- `Java` (for LepMap3)
+- `git` for cloning the repo (can also download it manually!)
+- `wget`
+- `awk`
+- `R`
+- `sudo` privileges (but installation and scripts can be modified!)
+
+#### Basic system-wide installation
 ```bash
 git clone https://github.com/pdimens/LepMapp3r.git
 cd LepMapp3r && chmod +x LM3.install.sh
@@ -23,8 +32,3 @@ LepMap3 is a **very** comprehensive software, and LepMapp3r cannot (will not?) i
 
 ## Citation
 Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726–3732,https://doi.org/10.1093/bioinformatics/btx494
-
-### As of yet incomplete. 
-
-To do:
- - include basic installation script to install into $PATH
