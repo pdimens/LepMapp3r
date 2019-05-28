@@ -13,11 +13,11 @@ cp ./bin/* LepMapp3rQA.r LM3
 sudo mv LM3 LepMapp3r /bin
 
 echo "[Installation summary]"
-echo -e "File\tLocation"
-echo -e "LepMapp3r\t/bin"
+echo -e "Location\tFile"
+echo -e "bin\t/LepMapp3r"
 for LM3FILE in $(ls /bin/LM3/*)
 do
-    echo -e "$(basename $LM3FILE)\t$(dirname $LM3FILE)"
+    echo -e "$(dirname $LM3FILE)\t$(basename $LM3FILE)"
 done
 
 echo "Installation complete! You may now safely delete the entire LepMapp3r folder"
