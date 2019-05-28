@@ -147,7 +147,8 @@ ordermarkers(){
 
 export -f ordermarkers
 
-trimming(){    # sort by linkage group and likelihood
+# sort by linkage group and likelihood
+trimming(){    
     sort ordermarkers/likelihoods.txt -k1,1 -k3,3nr > ordermarkers/likelihoods.sorted.txt
 
     # pull out best maps for each linkage group
@@ -211,13 +212,14 @@ reordering(){
     export DISTMETHOD
     export SCALEVAL
     export NUMITER
+    export NUMCHROM
     reordermarkers() {
         for j in $(seq 1 $NUMITER)
             do
             zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP \
             data=- numThreads=$THREADS $DISTMETHOD \
             scale=$SCALEVAL \
-            evaluateOrder=$1 > ordermarkers.final/$(echo "reorder.$(basename $1).$j.txt" | cut -d'.' -f1,4,7,8)
+            evaluateOrder=$1 > ordermarkers.final/$(echo "reordered.$(basename $1).$j.txt" | cut -d'.' -f1,4,7,8)
         done
     }
     export -f reordermarkers
@@ -231,7 +233,7 @@ reordering(){
             do
             LG="reordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -2 ordermarkers.final/reorder.$i.$j.txt | tail -1 | cut -c 25-) 
+            LIKELIHOOD=$(head -2 ordermarkers.final/reordered.$i.$j.txt | tail -1 | cut -c 25-) 
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers.final/reordered.likelihoods.txt
         done
     done
@@ -300,35 +302,22 @@ if [ $# -eq 0 ]; then
 elif [ $# -ne 0 ]; then
             cat <<EOF
 
-LepMapp3r is a wrapper for LepMap3 (Rasta 2017) intended to link the modules together into a 
-single workflow. To use it correctly, LepMap3 needs to be installed in /bin/LM3, however you 
-can always modify LepMapp3r to point to where your installation is by editing Line 4. 
-Additionally, you will need LepMapp3rQA.r installed in /bin as well, or wherever you want (so 
-long as you change the location on line 138). To use LepMapp3r, simply run the command without
-any arguments.
+LepMapp3r is a wrapper for LepMap3 (Rasta 2017) intended to link the modules together into a single workflow. To use it correctly, LepMap3 and LepMapperQA.r needs to be installed in /bin/LM3, however you can always modify LepMapp3r to point to where your installation is by editing Line 267. To use LepMapp3r, simply run the command with no arguments.
 
                              [LepMapp3r workflow]
-ParentCall -> SeparateChromosomes -> JoinSingles -> OrderMarkers -> Trimming Ends-> Reordering
+ParentCall -> SeparateChromosomes -> JoinSingles -> OrderMarkers -> Trimming Ends -> Reordering
 
-By default, if you run LepMapp3r without arguments it will start at ParentCall and work through
-until the end. Ordering markers may take a while, so it is recommended to run LepMapp3r in a 
-screen environment. LepMapp3r creates several folders during operation, and for safety, it is 
-made to identify if these folders exist so as to skip that step and not overwrite data. 
-Please remove or rename these folders as necessary to avoid unintentionally skipping steps: 
+By default, if you run LepMapp3r without arguments it will start at ParentCall and work through until the end. Ordering markers may take a while, so it is recommended to run LepMapp3r in a screen environment. LepMapp3r creates several folders during operation, and for safety, it is made to identify if these folders exist so as to skip that step and not overwrite data. Please remove or rename these folders as necessary to avoid unintentionally skipping steps: 
 iter.maps
 ordermarkers/best.trimmed 
 ordermarkers/bestlikelihoods
 ordermarkers.final/bestlikelihoods
 
                                 [Disclaimer] 
-LepMap3 is a very comprehensive software, and LepMapp3r cannot possibly incorporate all the
-features and nuances within the various modules. Your study is unique, so you are encouraged 
-to fork the GitHub repo and adapt LepMapp3r to your needs! 
+LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
 
                                  [Citation] 
-Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing 
-data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726–3732, 
-https://doi.org/10.1093/bioinformatics/btx494
+Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726–3732, https://doi.org/10.1093/bioinformatics/btx494
 
 EOF
 fi
