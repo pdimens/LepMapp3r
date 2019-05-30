@@ -46,10 +46,29 @@ separatechromosomes(){
     for i in $(seq $LODSTART $LODEND)
         do
         zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.LOD.$i.txt
-        sort iter.maps/map.LOD.$i.txt | uniq -c | sort -n > iter.maps/map.$i.summary.txt
+        # this exhausted pipe summarizes the maps, removes leading whitespaces, and sorts by LG
+        sort iter.maps/map.LOD.$i.txt | uniq -c | sed -n '1!p' | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/map.$i.summary.txt
+        if [ $i -eq $LODEND ]; then
+        # initialize max number of LG's in summary file
+            cut -f2 -d " " iter.maps/map.$i.summary.txt > iter.maps/map.summaries.txt
+        fi 
     done
-    echo -e "\nExamine the maps produced ("iter.maps/map.LOD.X.txt") and decide on the best map before proceeding"
-    echo "if using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
+    # merge summaries into one file
+    colnames=("LG")
+    for summfile in $(ls ./iter.maps/map.*.summary.txt | sort -V )
+        do
+        # append the marker numbers onto the summary file
+        cut -f1 -d " " $summfile | paste iter.maps/map.summaries.txt -  > iter.maps/summtemp && mv iter.maps/summtemp iter.maps/map.summaries.txt
+        # remove the "summary.txt" from filenames (they will be colnames)
+        summfilecorr=${summfile:0:-12}
+        # append fixed colnames to a list
+        colnames+=($(basename $summfilecorr))
+        rm $summfile
+    done
+    # add column names & replace spaces with tabs in colnames
+    sed  -i "1i $colnames" iter.maps/map.summaries.txt && tr ' ' \\t < iter.maps/map.summaries.txt > iter.maps/summtmp.txt && mv iter.maps/map.summaries.txt
+    echo -e "\nExamine the maps produced ("iter.maps/map.summaries.txt") and decide on the best map before proceeding."
+    echo "If using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
     echo "if not using a screen, press ctrl+z to pause followed by the "bg" command to put in the background. When ready, enter the "fg" command to bring LepMapp3r into the foreground again"
     echo "Press Enter to proceed"
     read PROCEED
@@ -78,7 +97,7 @@ joinsingles(){
     read -r PROCS
     DATAMAP=$(echo "MASTER.$BESTMAP")
     zcat data_f.call.gz | java $LM3PATH JoinSingles2All map=iter.maps/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > $DATAMAP
-    cut -f 1 $DATAMAP | sort | uniq -c | sort -n
+    cut -f 1 $DATAMAP | sort | uniq -c | sort -k2n
 }
 
 export -f joinsingles
@@ -106,7 +125,7 @@ ordermarkers(){
     esac
     printf 'You want to order the markers on linkage groups 1 to... ?  '
     read -r NUMCHROM
-    printf 'How many iterations per linkage group?  '
+    printf 'How many iterations per linkage group (>30 preferred)? '
     read -r NUMITER
     printf 'This step runs in parallel. The number of chromosomes being run at once must be <= number CPUs '
     printf '\nHow many linkage groups would you like to order in parallel at once (max CPUs=%s)?  ' "$(nproc)"
