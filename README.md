@@ -3,13 +3,16 @@
 LepMapp3r is a wrapper for LepMap3 [(Rastas 2017)](https://academic.oup.com/bioinformatics/article/33/23/3726/4061277) intended to link the modules together into a single workflow. To use it correctly, LepMap3 and LepMapperQA.r needs to be installed in `/bin/LM3`, however you can always modify LepMapp3r to point to where your installation is by editing Lines `173` and`267`. LepMapp3r is made for convenience, but it is **not** a replacement for reading the docs and learning how to use LepMap3 correctly. Find the LepMap3 wiki [here](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/#lep-map3-documentation).
 
 ### Requirements
-- `GNU parallel`
-- `Java` (for LepMap3)
+#### For installation
+- `sudo` privileges (but installation and scripts can be modified!)
 - `git` for cloning the repo (can also download it manually!)
 - `wget`
+
+#### For running
+- `GNU parallel`
+- `Java` (for LepMap3)
 - `awk`
 - `R`
-- `sudo` privileges (but installation and scripts can be modified!)
 - `screen` (optional but strongly encouraged)
 
 ### Installation
