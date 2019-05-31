@@ -6,14 +6,6 @@ parentcall(){
     printf "\033[01;33m"
     printf "\nParentCall"
     printf "\033[0m"
-    echo -e "\n------------List of all files in directory------------"
-    ls .
-    echo -e "------------------------------------------------------"
-    printf '\nWhat is the name of the pedigree file?  '
-    read -r PEDIGREE
-    if [ ! -f $PEDIGREE ]; then
-        echo "Error: $PEDIGREE not found in working directory. Please check spelling." && exit 1
-    fi
     printf 'What is the name of the filtered vcf file?  '
     read -r VCFFILE
     if [ ! -f $VCFFILE ]; then
@@ -45,6 +37,9 @@ separatechromosomes(){
     mkdir -p iter.maps
     for i in $(seq $LODSTART $LODEND)
         do
+        printf "\033[01;33m" 
+        printf "Running SeparateChromosomes 2 with LOD limit=%s\n" "$i" 
+        printf "\033[0m"
         zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.$i.txt
         # this exhausted pipe summarizes the maps, removes leading whitespaces, and sorts by LG
         sed '1,1d' iter.maps/map.$i.txt | sort | uniq -c | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/.map.$i.summary.txt
@@ -79,7 +74,7 @@ joinsingles(){
     printf " JoinSingles\n" 
     printf "\033[0m"
     echo -e "\n------------List of map files in iter.maps/------------"
-    find ./iter.maps -name "map.*.txt"  -printf "%f\t"
+    find ./iter.maps -name "map.*.txt" -printf "%f\n"
     echo -e "\n------------------------------------------------------\n"
     printf 'Which map would you like to use (just the filename, exclude directory)?  '
     read -r BESTMAP
@@ -281,24 +276,28 @@ export -f reordering
 # Run everything
 if [ $# -eq 0 ]; then
     LM3PATH=$(echo "-cp /bin/LM3")
+    echo -e "\n------------List of all files in directory------------"
+    ls -p | grep -v /
+    echo -e "------------------------------------------------------"
+    printf '\nWhat is the name of the pedigree file?  '
+        read -r PEDIGREE
+    if [ ! -f $PEDIGREE ]; then
+        echo "Error: $PEDIGREE not found in working directory. Please check spelling." && exit 1
+    fi
     export LM3PATH
+    export PEDIGREE
     if [ ! -f "data_f.call.gz" ]; then
         parentcall && separatechromosomes && joinsingles && ordermarkers && trimming && reordering
     else
         if [ ! -d "iter.maps" ]; then
             echo "file "data_f.call.gz" detected, skipping ParentCall..."
             separatechromosomes && joinsingles && ordermarkers && trimming && reordering
-        elif test -n "$(find ./ -maxdepth 1 -name 'MASTER.map.LOD.*.txt' -print -quit)"; then
-            echo -e "\n------------List of all files in working directory------------"
-            ls .
+        elif test -n "$(find ./ -maxdepth 1 -name 'MASTER.map.*.txt' -print -quit)"; then
+            echo -e "\n------------List of all maps in working directory------------"
+            ls MASTER.map.*.txt
             echo -e "----------------------------------------------------------------"
-            printf '\nWhat is the name of the pedigree file? '
-            read -r PEDIGREE
-            if [ ! -f $PEDIGREE ]; then
-                echo "Error: $PEDIGREE not found in working directory. Please check spelling." && exit 1
-            fi
-            printf 'Which map would you like to use for ordering (MASTER.map.LOD.*.txt)? '
-            read -r BESTMAP
+            printf 'Which map would you like to use for ordering (MASTER.map.*.txt)? '
+                read -r BESTMAP
             if [ ! -f $BESTMAP ]; then
                 echo "Error: $DATAMAP not found in working directory. Please check spelling." && exit 1
             else
