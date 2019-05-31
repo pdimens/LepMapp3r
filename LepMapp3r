@@ -39,36 +39,33 @@ separatechromosomes(){
     read -r LODSTART
     printf 'What LOD limit do you want to end with?  '
     read -r LODEND 
-    echo -e "\nThis may take a while depending on your data and the range of LOD score you want to explore."
+    echo -e "\nThis may take a while depending on your data and the range of LOD scores you're exploring."
     printf 'How many CPUs would you like to use per iteration (max=%s)?  ' "$(nproc)"
     read -r NBPROCS
     mkdir -p iter.maps
     for i in $(seq $LODSTART $LODEND)
         do
-        zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.LOD.$i.txt
+        zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.$i.txt
         # this exhausted pipe summarizes the maps, removes leading whitespaces, and sorts by LG
-        sort iter.maps/map.LOD.$i.txt | uniq -c | sed -n '1!p' | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/map.$i.summary.txt
-        if [ $i -eq $LODEND ]; then
-        # initialize max number of LG's in summary file
-            cut -f2 -d " " iter.maps/map.$i.summary.txt > iter.maps/map.summaries.txt
-        fi 
+        sed '1,1d' iter.maps/map.$i.txt | sort | uniq -c | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/.map.$i.summary.txt
+        # prepend column names
+        sed  -i "1i map.$i LG" iter.maps/.map.$i.summary.txt
     done
+    
+    # initialize max number of LG's in summary file
+    cut -f2 -d " " iter.maps/.map.$LODEND.summary.txt > iter.maps/maps.summary.txt
+    
     # merge summaries into one file
-    colnames=("LG")
-    for summfile in $(ls ./iter.maps/map.*.summary.txt | sort -V )
+    for summfile in $(ls ./iter.maps/.map.*.summary.txt | sort -V )
         do
         # append the marker numbers onto the summary file
-        cut -f1 -d " " $summfile | paste iter.maps/map.summaries.txt -  > iter.maps/summtemp && mv iter.maps/summtemp iter.maps/map.summaries.txt
-        # remove the "summary.txt" from filenames (they will be colnames)
-        summfilecorr=${summfile:0:-12}
-        # append fixed colnames to a list
-        colnames+=($(basename $summfilecorr))
-        rm $summfile
+        cut -f1 -d " " $summfile | paste iter.maps/maps.summary.txt -  > iter.maps/summtemp && mv iter.maps/summtemp iter.maps/maps.summary.txt && rm $summfile
     done
-    # add column names & replace spaces with tabs in colnames
-    sed  -i "1i $colnames" iter.maps/map.summaries.txt && tr ' ' \\t < iter.maps/map.summaries.txt > iter.maps/summtmp.txt && mv iter.maps/map.summaries.txt
-    echo -e "\nExamine the maps produced ("iter.maps/map.summaries.txt") and decide on the best map before proceeding."
-    echo "If using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
+    # replace all spaces with tabs
+    sed -i 's/ /\t/g' iter.maps/maps.summary.txt
+
+    echo -e "\nExamine the maps produced ("iter.maps/maps.summary.txt") and decide on the best map before proceeding"
+    echo "if using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
     echo "if not using a screen, press ctrl+z to pause followed by the "bg" command to put in the background. When ready, enter the "fg" command to bring LepMapp3r into the foreground again"
     echo "Press Enter to proceed"
     read PROCEED
@@ -82,7 +79,7 @@ joinsingles(){
     printf " JoinSingles\n" 
     printf "\033[0m"
     echo -e "\n------------List of map files in iter.maps/------------"
-    find ./iter.maps -name "map.LOD.*.txt"  -printf "%f\t"
+    find ./iter.maps -name "map.*.txt"  -printf "%f\t"
     echo -e "\n------------------------------------------------------\n"
     printf 'Which map would you like to use (just the filename, exclude directory)?  '
     read -r BESTMAP
@@ -289,6 +286,7 @@ if [ $# -eq 0 ]; then
         parentcall && separatechromosomes && joinsingles && ordermarkers && trimming && reordering
     else
         if [ ! -d "iter.maps" ]; then
+            echo "file "data_f.call.gz" detected, skipping ParentCall..."
             separatechromosomes && joinsingles && ordermarkers && trimming && reordering
         elif test -n "$(find ./ -maxdepth 1 -name 'MASTER.map.LOD.*.txt' -print -quit)"; then
             echo -e "\n------------List of all files in working directory------------"
@@ -309,11 +307,14 @@ if [ $# -eq 0 ]; then
             if [ ! -d "ordermarkers" ]; then
                 ordermarkers && trimming && reordering
             elif [ "$(ls -A "ordermarkers/best.trimmed" )" ]; then
+                echo "ordered maps in "odrdermarkers/best.trimmed" detected, skipping OrderMarkers..."
                 reordering
             else
+                echo "directory "ordermarkers" detected, skipping OrderMarkers..."
                 trimming && reordering
             fi
         else
+            echo "directory "iter.maps" detected, skipping SeparateChromosomes..."
             joinsingles && ordermarkers && trimming && reordering
         fi
     fi
