@@ -182,7 +182,9 @@ trimming(){
     read -r TRIMTHRESH
     mkdir -p ./ordermarkers/best.trimmed
     Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH
-    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/best.trimmed
+    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/bestlikelihoods/trimming.plots.pdf ./ordermarkers/best.trimmed
+    echo "Find $(cat ./ordermarkers/best.trimmed/badmarkers.txt | wc -l) poorly mapped loci in ordermarkers/best.trimmed/bad_markers.txt"
+    echo "Find plots of trimming before-after in ordermarkers/best.trimmed/trimming.plots.pdf"
 }    
 
 export -f trimming
