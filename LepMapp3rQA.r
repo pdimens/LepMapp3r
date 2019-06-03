@@ -1,62 +1,88 @@
 args = commandArgs(trailingOnly = TRUE)
 
-if (length(args)==0) {
-  stop("Trims the ends for clusters away from the main map using unmodified LepMap3 OrderedMarkers2 output as input 
-       [usage] Rscript lepmapQA.r <directory> <inputfile matching pattern> <cM distance cutoff (default=10)>
-       [example] Rscript lepmapQA.r . ordered
-       [example] Rscript lepmapQA.r ./beardata chromosome 15", call.=FALSE)
-}  else if (length(args)==2) {
-  # default cM distance cutoff
-  args[3] = 10
-}
-
 suppressMessages(if (!require("dplyr")) install.packages("dplyr"))
 suppressMessages(library("dplyr"))
 path = args[1]
 setwd(args[1])
 file.names <- dir(path, pattern = args[2])
+file.names <- file.names[order(nchar(file.names), file.names)] #sort by LG
+PDFPath <- paste(path, "trimming.plots.pdf", sep = "/")
+pdf(file=PDFPath, height = 11, width = 8.5) 
+par(mfrow=(c(4,2))) # create 4x2 plots
 
 ##### Pruning the ends #####
 
 for(i in file.names){  
-  lgfile <- read.delim(paste(path,"/",i, sep = ""), 
+  lgfile <- read.delim(paste(path,i, sep = "/"), 
                        header = FALSE, 
                        sep = "\t", 
                        comment.char="#"
   )
-  passing_markers<- lgfile
-  
+  passing_markers <- lgfile %>% filter(V2 != 0) %>% filter(V3 != 0)  # remove any markers at position 0
+  trimmed_markers <- lgfile
+
   for (j in 2:3){   # iterate over male (2) and female (3)
-    # prune beginning
-    pass_sort<-passing_markers[order(passing_markers[,j]),]   # sort good markers
-    filelength10 <- length(pass_sort[,j]) * 0.15
-    for(a in 1:filelength10){ #first 10% of total markers from the beginning
-      diff <- abs(pass_sort[a+1,j]-pass_sort[a,j]) # difference between two points
-      if( diff > args[3] ){ # is the difference between the two points > distance argument?
-        pass_sort[1:a,] <- NA # mark that marker and all markers BEFORE it as NA
+    # trim beginning
+    filelength15 <- length(passing_markers$V1) * 0.15
+    for(a in 1:filelength15){ #first 15% of total markers from the beginning
+      diff <- abs(passing_markers[a+1,j]-passing_markers[a,j]) # difference between two points
+      if( diff > 10 ){ # is the difference between the two points > distance argument?
+        passing_markers[1:a,4] <- NA # mark that marker and all markers BEFORE it as NA
       }
     }
+    # trim end
+    filelen<-length(passing_markers$V1)  # get new file lengths for each time we remove NA's
+    for(z in filelen:(filelen-filelength15)){  #iterate 15% total markers in starting from the end
+      diff <- abs(passing_markers[z,j]-passing_markers[z-1,j]) # difference between two points
+      if( diff > 10 ){ # is the difference between the two points > distance argument?
+        passing_markers[filelen:z,4] <- NA # mark that marker and all markers AFTER it as NA
+      }
+    }
+
+    for(rownum in 1:length(passing_markers$V4)) {
+      if(!is.na(passing_markers$V4[rownum])) {
+        trimmed_markers[rownum,j] <- NA
+      }
+    }
+
+    # move to dataframe for "good markers"
+    cleaned_markers <- passing_markers %>% filter(V4 != "NA")  
     
-    # prune ends
-    filelen<-length(pass_sort[,j])  # get new file lengths for each time we remove NA's
-    filelength10 <- round(filelen * 0.15)
-    for(z in filelen:(filelen-filelength10)){  #iterate 10% total markers in starting from the end
-      diff <- abs(pass_sort[z,j]-pass_sort[z-1,j]) # difference between two points
-      if( diff > args[3] ){ # is the difference between the two points > distance argument?
-        pass_sort[filelen:z,] <- NA # mark that marker and all markers AFTER it as NA
-      }
+    # diagnostic plots
+    par(mar=c(3,4.3,2,1)+0.1)  # reduce the padding somewhat
+    just_ordernum <- tools::file_path_sans_ext(i)  # remove the extension from files for plots
+    if( j==2 ){
+      plot( x = lgfile[,j], 
+            type = "n",
+            main = "Male",
+            ylab = paste(just_ordernum, "distance"),
+            cex.lab = 1.8,
+            xlab = "",
+            pch = 19
+      )
+      points(cleaned_markers[,j], col = "slategray", pch = 19, cex = 2)  # plot good markers
+      points(trimmed_markers[,j], col = "coral3", pch = 18, cex = 3 )   # plot bad markers
+    } else {
+      plot( x = lgfile[,j], 
+            type = "n", 
+            main = "Female",
+            ylab = "",
+            xlab = ""
+      )
+      points(cleaned_markers[,j], col = "slategray", pch = 19, cex = 2)
+      points(trimmed_markers[,j], col = "coral3", pch = 18, cex = 3 )
     }
-    passing_markers <- pass_sort %>% filter(V1 != "NA")   # overwrite passing_markers after pruning ends
+ 
   }
   
   # isolate bad markers by comparing to original input file
-  removed_markers<- as.vector(setdiff(lgfile[,1],passing_markers[,1]))
-  
+  removed_markers<- as.vector(setdiff(lgfile[,1],cleaned_markers[,1]))
+
   # outputting filtered files
   filename<- paste("trimmed",i, sep=".")
   print(paste("Removing",length(removed_markers),"markers from",i , "and writing new file", filename, sep = " "))
   writeLines(readLines(i, n=3),con = filename)
-  write.table(passing_markers, 
+  write.table(cleaned_markers, 
               file = filename, 
               sep = "\t",
               quote = FALSE, 
@@ -73,5 +99,4 @@ for(i in file.names){
               col.names = FALSE
   )
 }
-
-print("Find poorly mapped loci in bad_markers.txt")
+suppressMessages(dev.off())
