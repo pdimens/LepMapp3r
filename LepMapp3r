@@ -178,10 +178,9 @@ trimming(){
     printf "\033[0m"
 
     # run trimming script
-    printf '\nAt what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
-    read -r TRIMTHRESH
+    printf '\nTrimming map ends for markers at position 0 and marker clusters >10cM from the ends...\n'
     mkdir -p ./ordermarkers/best.trimmed
-    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH
+    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered
     mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/bestlikelihoods/trimming.plots.pdf ./ordermarkers/best.trimmed
     echo "Find $(cat ./ordermarkers/best.trimmed/badmarkers.txt | wc -l) poorly mapped loci in ordermarkers/best.trimmed/bad_markers.txt"
     echo "Find plots of trimming before-after in ordermarkers/best.trimmed/trimming.plots.pdf"
@@ -218,8 +217,7 @@ reordering(){
             echo "using the default LepMap3 distance calculation method"
             DISTMETHOD=""
     esac
-    echo "This will take about as long as before. PAUSING"
-    read PROCEED
+    echo "This will take about as long as before. Please detatch the screen"
     export DATAMAP
     export THREADS
     export DISTMETHOD
