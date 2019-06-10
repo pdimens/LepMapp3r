@@ -141,7 +141,7 @@ ordermarkers(){
         done
     }
     export -f runordermarkers
-    seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers
+    seq 1 $NUMCHROM | parallel --progress --jobs $NUMJOBS runordermarkers
 
     # get likelihoods
     for i in $(seq 1 $NUMCHROM)
@@ -216,6 +216,8 @@ reordering(){
             echo "using the default LepMap3 distance calculation method"
             DISTMETHOD=""
     esac
+    printf '\nHow many linkage groups would you like to order in parallel at once (max CPUs=%s)?  ' "$(nproc)"
+    read -r NUMJOBS
     echo "This will take about as long as before."
     export DATAMAP
     export THREADS
@@ -223,6 +225,7 @@ reordering(){
     export SCALEVAL
     export NUMITER
     export NUMCHROM
+    export NUMJOBS
     reordermarkers() {
         for j in $(seq 1 $NUMITER)
             do
@@ -234,7 +237,7 @@ reordering(){
     }
     export -f reordermarkers
     
-    find ./ordermarkers/best.trimmed -name "trimmed.*.txt" | parallel reordermarkers
+    find ./ordermarkers/best.trimmed -name "trimmed.*.txt" | parallel --progress --jobs $NUMJOBS reordermarkers
 
     # get reordered linkage group likelihoods
     for i in $(seq 1 $NUMCHROM)
@@ -260,7 +263,6 @@ reordering(){
         LIKELYMAP=$(sed -n ${i}p ordermarkers.final/reordered.likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
         echo "$LIKELYMAP"
         cp ordermarkers.final/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
-        # trim off markers with position = 0
         sed '/\t0.000/d' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt > ./ordermarkers.final/bestlikelihoods/trimmed/$LIKELYMAP.txt
     done
     
@@ -272,7 +274,8 @@ reordering(){
     }
     
     export -f distancecalc
-    find ./ordermarkers.final/bestlikelihoods/trimmed -name "reordered*.txt" | parallel --jobs $NUMJOBS distancecalc
+    find ./ordermarkers.final/bestlikelihoods/trimmed -name "reordered*.txt" | parallel --progress --jobs $NUMJOBS distancecalc
+
 }
 
 export -f reordering
@@ -322,7 +325,7 @@ if [ $# -eq 0 ]; then
         fi
     fi
     exit 
-else
+elif [ $# -ne 0 ]; then
             cat <<EOF
 
 LepMapp3r is a wrapper for LepMap3 (Rasta 2017) intended to link the modules together into a single workflow. To use it correctly, LepMap3 and LepMapperQA.r needs to be installed in /bin/LM3, however you can always modify LepMapp3r to point to where your installation is by editing Lines 173 and 267. To use LepMapp3r, simply run the command with no arguments.
