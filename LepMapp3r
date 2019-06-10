@@ -178,12 +178,11 @@ trimming(){
     printf "\033[0m"
 
     # run trimming script
-    printf '\nTrimming map ends for markers at position 0 and marker clusters >10cM from the ends...\n'
+    printf '\nAt what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
+    read -r TRIMTHRESH
     mkdir -p ./ordermarkers/best.trimmed
-    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered
-    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/bestlikelihoods/trimming.plots.pdf ./ordermarkers/best.trimmed
-    echo "Find $(cat ./ordermarkers/best.trimmed/badmarkers.txt | wc -l) poorly mapped loci in ordermarkers/best.trimmed/bad_markers.txt"
-    echo "Find plots of trimming before-after in ordermarkers/best.trimmed/trimming.plots.pdf"
+    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH
+    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/best.trimmed
 }    
 
 export -f trimming
@@ -217,7 +216,8 @@ reordering(){
             echo "using the default LepMap3 distance calculation method"
             DISTMETHOD=""
     esac
-    echo "This will take about as long as before. Please detatch the screen"
+    echo "This will take about as long as before. PAUSING"
+    read PROCEED
     export DATAMAP
     export THREADS
     export DISTMETHOD
@@ -259,16 +259,19 @@ reordering(){
         do
         LIKELYMAP=$(sed -n ${i}p ordermarkers.final/reordered.likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
         echo "$LIKELYMAP.txt"
-        cp ordermarkers/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
+        cp ordermarkers.final/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
     done
 
     ## calculate map distance and sex specific map distance
     mkdir -p final.distances
-    for lgfile in ./ordermarkers.final/bestlikelihoods/order*.txt
-    do
-        zcat data_f.call.gz | java OrderMarkers2 data=- evaluateOrder=$lgfile  improveOrder=0 $DISTMETHOD > final.distances/$file.distance
-        zcat data_f.call.gz | java OrderMarkers2 data=- evaluateOrder=$lgfile  improveOrder=0 sexAveraged=1 $DISTMETHOD > final.distances/$file.sexdistance
-    done
+    distancecalc(){
+        zcat data_f.call.gz | java -cp $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 $DISTMETHOD > final.distances/$(basename ${1%.txt}).distance
+        zcat data_f.call.gz | java -cp $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 sexAveraged=1 $DISTMETHOD > final.distances/$(basename ${1%.txt}).sexdistance
+    }
+    
+    export -f distancecalc
+    find ./ordermarkers.final/bestlikelihoods/ -name "reordered*.txt" | parallel --jobs $NUMJOBS distancecalc
+
 }
 
 export -f reordering
