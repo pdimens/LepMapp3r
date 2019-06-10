@@ -12,7 +12,7 @@ LepMapp3r is a wrapper for LepMap3 [(Rastas 2017)](https://academic.oup.com/bioi
 - `GNU parallel`
 - `Java` (for LepMap3)
 - `awk`
-- `R`
+- `R` (uses `Dplyr`, will autoinstall if not present)
 - `screen` (optional but strongly encouraged)
 
 ### Installation
