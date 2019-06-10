@@ -9,6 +9,7 @@ file.names <- file.names[order(nchar(file.names), file.names)] #sort by LG
 PDFPath <- paste(path, "trimming.plots.pdf", sep = "/")
 pdf(file=PDFPath, height = 11, width = 8.5) 
 par(mfrow=(c(4,2))) # create 4x2 plots
+par(mar=c(3,4.3,2,1)+0.1)  # reduce the padding somewhat
 
 ##### Pruning the ends #####
 
@@ -49,7 +50,6 @@ for(i in file.names){
     cleaned_markers <- passing_markers %>% filter(V4 != "NA")  
     
     # diagnostic plots
-    par(mar=c(3,4.3,2,1)+0.1)  # reduce the padding somewhat
     just_ordernum <- tools::file_path_sans_ext(i)  # remove the extension from files for plots
     if( j==2 ){
       plot( x = lgfile[,j], 
