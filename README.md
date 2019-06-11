@@ -42,6 +42,9 @@ LepMapp3r
 ```
 Running `LepMapp3r` with any arguments e.g. `help` `-h` `--help` `mango` `American democracy is crumbling` will invoke the help text.
 
+## lepmap2allmaps
+This is a python script included in the repository but not used by `LepMapp3r`. The script converts LepMap3 distances output into `ALLMAPS` format. Run it without arguments to see the usage text. **Note**: LepMapp3r will not install ALLMAPS onto your system, so please explore the documentation for ALLMAPS [found here](https://github.com/tanghaibao/jcvi/wiki/ALLMAPS). 
+
 ### Be aware
 LepMap3 is a **very** comprehensive software, and LepMapp3r cannot (will not?) incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork this repo and adapt LepMapp3r to your needs! All of the code in LepMapp3r is written [more or less] cleanly in human-readable bash, so give it a shot and adapt it to your workflow. If using LepMapp3r and publishing, cite **Pasi Rastas** for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter [@pvdimens](https://twitter.com/PVDimens) [![alt text](http://i.imgur.com/wWzX9uB.png)](https://twitter.com/PVDimens)  =)
 
