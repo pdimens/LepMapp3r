@@ -260,8 +260,12 @@ reordering(){
         cp ordermarkers.final/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
         # remove markers with position 0
         sed '/\t0.000/d' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt > ./ordermarkers.final/bestlikelihoods/trimmed/$LIKELYMAP.txt
+        # append the trimmed markers to a log file
+        sed -n '/\t0.000/p' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt  | cut -f1 >> ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt
     done
-    
+    ## merge all trimmed markers
+    cat ./ordermarkers/best.trimmed/bad.markers.txt ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt > Trimmed.Markers.log
+
     ## calculate map distance and sex specific map distance
     mkdir -p final.distances
     distancecalc(){
