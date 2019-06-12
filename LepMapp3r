@@ -40,9 +40,9 @@ separatechromosomes(){
         printf "\033[01;33m" 
         printf "Running SeparateChromosomes 2 with LOD limit=%s\n" "$i" 
         printf "\033[0m"
-        zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.$i.txt
+        zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.$i
         # this exhausted pipe summarizes the maps, removes leading whitespaces, and sorts by LG
-        sed '1,1d' iter.maps/map.$i.txt | sort | uniq -c | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/.map.$i.summary.txt
+        sed '1,1d' iter.maps/map.$i | sort | uniq -c | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/.map.$i.summary.txt
         # prepend column names
         sed  -i "1i map.$i LG" iter.maps/.map.$i.summary.txt
     done
@@ -74,7 +74,7 @@ joinsingles(){
     printf " JoinSingles\n" 
     printf "\033[0m"
     echo -e "\n------------List of map files in iter.maps/------------"
-    find ./iter.maps -name "map.*.txt" -printf "%f\n"
+    find ./iter.maps -name "map.*" -printf "%f\n"
     echo -e "\n------------------------------------------------------\n"
     printf 'Which map would you like to use (just the filename, exclude directory)?  '
     read -r BESTMAP
@@ -87,9 +87,10 @@ joinsingles(){
     read -r LODDIFF
     printf 'How many CPUs would you like to use per iteration (max=%s)?  ' "$(nproc)"
     read -r PROCS
-    DATAMAP=$(echo "MASTER.$BESTMAP")
+    DATAMAP=$(echo "$BESTMAP.master")
     zcat data_f.call.gz | java $LM3PATH JoinSingles2All map=iter.maps/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > $DATAMAP
     cut -f 1 $DATAMAP | sort | uniq -c | sort -k2n
+    echo "Your filtered map can be found in ./$BESTMAP.master"
 }
 
 export -f joinsingles
@@ -135,13 +136,10 @@ ordermarkers(){
     export SCALEVAL
     export NUMITER
     runordermarkers() {
-        for j in $(seq 1 $NUMITER)
-            do
-            zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP data=- numThreads=$THREADS $DISTMETHOD scale=$SCALEVAL chromosome=$1 > ordermarkers/ordered.$1.$j.txt
-        done
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP data=- numThreads=$THREADS $DISTMETHOD scale=$SCALEVAL chromosome=$2 > ordermarkers/ordered.$2.$1.txt
     }
     export -f runordermarkers
-    seq 1 $NUMCHROM | parallel --progress --jobs $NUMJOBS runordermarkers
+    seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers {1} {2} ::: $(seq 1 $NUMITER) ::: $(seq 1 $NUMCHROM)
 
     # get likelihoods
     for i in $(seq 1 $NUMCHROM)
@@ -181,7 +179,7 @@ trimming(){
     printf '\nAt what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
     read -r TRIMTHRESH
     mkdir -p ./ordermarkers/best.trimmed
-    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH
+    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH > Trimming.log
     mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/best.trimmed
 }    
 
@@ -201,7 +199,7 @@ reordering(){
     NUMINDS=$(( $(head -n 1 $PEDIGREE | awk '{print NF}') - 2 ))
     NUMLOCI=$(tail -n +2 ./$DATAMAP | wc -l)
     SCALEVAL=$(echo $NUMINDS $NUMLOCI | awk '{ print $1/$2 }')
-    printf 'What distance-calculating method would you like to use (default, morgan, or kosambi)?  '
+    printf '\nWhat distance-calculating method would you like to use (default, morgan, or kosambi)?  '
     read -r DISTTYPE
     case $DISTTYPE in
         kosambi)
@@ -227,17 +225,14 @@ reordering(){
     export NUMCHROM
     export NUMJOBS
     reordermarkers() {
-        for j in $(seq 1 $NUMITER)
-            do
-            zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP \
+            zcat data_f.call.gz | java $LM3PATH OrderMarkers2 evaluateOrder=$1\
+            map=$DATAMAP \
             data=- numThreads=$THREADS $DISTMETHOD \
-            scale=$SCALEVAL \
-            evaluateOrder=$1 > ordermarkers.final/$(echo "reordered.$(basename $1).$j.txt" | cut -d'.' -f1,4,7,8)
-        done
+            scale=$SCALEVAL > ordermarkers.final/$(echo "reordered.$(basename $1).$2.txt" | cut -d'.' -f1,4,7,8)
     }
     export -f reordermarkers
     
-    find ./ordermarkers/best.trimmed -name "trimmed.*.txt" | parallel --progress --jobs $NUMJOBS reordermarkers
+    parallel --group --jobs $NUMJOBS reordermarkers {2} {1} ::: $(seq 1 $NUMITER) ::: $(find ./ordermarkers/best.trimmed -name "trimmed.*.txt")
 
     # get reordered linkage group likelihoods
     for i in $(seq 1 $NUMCHROM)
@@ -263,14 +258,15 @@ reordering(){
         LIKELYMAP=$(sed -n ${i}p ordermarkers.final/reordered.likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
         echo "$LIKELYMAP"
         cp ordermarkers.final/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
+        # remove markers with position 0
         sed '/\t0.000/d' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt > ./ordermarkers.final/bestlikelihoods/trimmed/$LIKELYMAP.txt
     done
     
     ## calculate map distance and sex specific map distance
     mkdir -p final.distances
     distancecalc(){
-        zcat data_f.call.gz | java -cp $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 $DISTMETHOD > final.distances/$(basename ${1%.txt}).distance
-        zcat data_f.call.gz | java -cp $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 sexAveraged=1 $DISTMETHOD > final.distances/$(basename ${1%.txt}).sexdistance
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 $DISTMETHOD > final.distances/$(basename ${1%.txt}).distance
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 sexAveraged=1 $DISTMETHOD > final.distances/$(basename ${1%.txt}).sexdistance
     }
     
     export -f distancecalc
@@ -299,11 +295,11 @@ if [ $# -eq 0 ]; then
         if [ ! -d "iter.maps" ]; then
             echo "file "data_f.call.gz" detected, skipping ParentCall..."
             separatechromosomes && joinsingles && ordermarkers && trimming && reordering
-        elif test -n "$(find ./ -maxdepth 1 -name 'MASTER.map.*.txt' -print -quit)"; then
+        elif test -n "$(find ./ -maxdepth 1 -name 'map.*.master' -print -quit)"; then
             echo -e "\n------------List of all maps in working directory------------"
-            ls MASTER.map.*.txt
+            ls map.*.master
             echo -e "----------------------------------------------------------------"
-            printf 'Which map would you like to use for ordering (MASTER.map.*.txt)? '
+            printf 'Which map would you like to use for ordering (map.*.master)? '
                 read -r BESTMAP
             if [ ! -f $BESTMAP ]; then
                 echo "Error: $DATAMAP not found in working directory. Please check spelling." && exit 1
