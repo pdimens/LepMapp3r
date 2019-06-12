@@ -22,8 +22,13 @@ A simple installation script script has been provided to download and install `L
 
 #### Basic system-wide installation
 ```bash
+# download a copy of this repository
 git clone --depth 1 https://github.com/pdimens/LepMapp3r.git
+
+# change the working dir to LepMapp3r and make the install script executable
 cd LepMapp3r && chmod +x LM3.install.sh
+
+# run the install script
 ./LM3.install.sh
 ```
 
