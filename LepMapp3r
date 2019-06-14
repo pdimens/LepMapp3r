@@ -259,6 +259,7 @@ reordering(){
         # remove markers with position 0
         sed '/\t0.000/d' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt > ./ordermarkers.final/bestlikelihoods/trimmed/$LIKELYMAP.txt
         # append the trimmed markers to a log file
+        echo "Appending trimmed marker names to ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt"
         sed -n '/\t0.000/p' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt  | cut -f1 >> ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt
     done
     ## merge all trimmed markers
@@ -274,6 +275,7 @@ reordering(){
     export -f distancecalc
     find ./ordermarkers.final/bestlikelihoods/trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
 
+    echo -e "\n LepMapp3r is all done! \n"
 }
 
 export -f reordering
