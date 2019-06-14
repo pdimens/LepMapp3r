@@ -34,32 +34,32 @@ separatechromosomes(){
     echo -e "\nThis may take a while depending on your data and the range of LOD scores you're exploring."
     printf 'How many CPUs would you like to use per iteration (max=%s)?  ' "$(nproc)"
     read -r NBPROCS
-    mkdir -p iter.maps
+    mkdir -p maps.splitchrom
     for i in $(seq $LODSTART $LODEND)
         do
         printf "\033[01;33m" 
         printf "Running SeparateChromosomes 2 with LOD limit=%s\n" "$i" 
         printf "\033[0m"
-        zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > iter.maps/map.$i
+        zcat data_f.call.gz | java $LM3PATH SeparateChromosomes2 data=- lodLimit=$i distortionLod=1 numThreads=$NBPROCS > maps.splitchrom/map.$i
         # this exhausted pipe summarizes the maps, removes leading whitespaces, and sorts by LG
-        sed '1,1d' iter.maps/map.$i | sort | uniq -c | sed 's/^[[:space:]]*//' | sort -k2n > iter.maps/.map.$i.summary.txt
+        sed '1,1d' maps.splitchrom/map.$i | sort | uniq -c | sed 's/^[[:space:]]*//' | sort -k2n > maps.splitchrom/.map.$i.summary.txt
         # prepend column names
-        sed  -i "1i map.$i LG" iter.maps/.map.$i.summary.txt
+        sed  -i "1i map.$i LG" maps.splitchrom/.map.$i.summary.txt
     done
     
     # initialize max number of LG's in summary file
-    cut -f2 -d " " iter.maps/.map.$LODEND.summary.txt > iter.maps/maps.summary.txt
+    cut -f2 -d " " maps.splitchrom/.map.$LODEND.summary.txt > maps.splitchrom/maps.summary.txt
     
     # merge summaries into one file
-    for summfile in $(ls ./iter.maps/.map.*.summary.txt | sort -V )
+    for summfile in $(ls ./maps.splitchrom/.map.*.summary.txt | sort -V )
         do
         # append the marker numbers onto the summary file
-        cut -f1 -d " " $summfile | paste iter.maps/maps.summary.txt -  > iter.maps/summtemp && mv iter.maps/summtemp iter.maps/maps.summary.txt && rm $summfile
+        cut -f1 -d " " $summfile | paste maps.splitchrom/maps.summary.txt -  > maps.splitchrom/summtemp && mv maps.splitchrom/summtemp maps.splitchrom/maps.summary.txt && rm $summfile
     done
     # replace all spaces with tabs
-    sed -i 's/ /\t/g' iter.maps/maps.summary.txt
+    sed -i 's/ /\t/g' maps.splitchrom/maps.summary.txt
 
-    echo -e "\nExamine the maps produced ("iter.maps/maps.summary.txt") and decide on the best map before proceeding"
+    echo -e "\nExamine the maps produced ("maps.splitchrom/maps.summary.txt") and decide on the best map before proceeding"
     echo "if using a screen environment, press ctrl+a then d to detach the screen and when ready return to it with the command "screen -r" "
     echo "if not using a screen, press ctrl+z to pause followed by the "bg" command to put in the background. When ready, enter the "fg" command to bring LepMapp3r into the foreground again"
     echo "Press Enter to proceed"
@@ -73,13 +73,13 @@ joinsingles(){
     printf "\033[01;33m" 
     printf " JoinSingles\n" 
     printf "\033[0m"
-    echo -e "\n------------List of map files in iter.maps/------------"
-    find ./iter.maps -name "map.*" -printf "%f\n"
+    echo -e "\n------------List of map files in maps.splitchrom/------------"
+    find ./maps.splitchrom -name "map.*" -printf "%f\n"
     echo -e "\n------------------------------------------------------\n"
     printf 'Which map would you like to use (just the filename, exclude directory)?  '
     read -r BESTMAP
-    if [ ! -f iter.maps/$BESTMAP ]; then
-        echo "Error: iter.maps/$BESTMAP not found in working directory. Please check spelling." && exit 1
+    if [ ! -f maps.splitchrom/$BESTMAP ]; then
+        echo "Error: maps.splitchrom/$BESTMAP not found in working directory. Please check spelling." && exit 1
     fi
     printf 'LOD limit (4 is common)?  '
     read -r LODLIMIT
@@ -88,7 +88,7 @@ joinsingles(){
     printf 'How many CPUs would you like to use per iteration (max=%s)?  ' "$(nproc)"
     read -r PROCS
     DATAMAP=$(echo "$BESTMAP.master")
-    zcat data_f.call.gz | java $LM3PATH JoinSingles2All map=iter.maps/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > $DATAMAP
+    zcat data_f.call.gz | java $LM3PATH JoinSingles2All map=maps.splitchrom/$BESTMAP data=- lodLimit=$LODLIMIT lodDifference=$LODDIFF iterate=1 numThreads=$PROCS > $DATAMAP
     cut -f 1 $DATAMAP | sort | uniq -c | sort -k2n
     echo "Your filtered map can be found in ./$BESTMAP.master"
 }
@@ -296,7 +296,7 @@ if [ $# -eq 0 ]; then
     if [ ! -f "data_f.call.gz" ]; then
         parentcall && separatechromosomes && joinsingles && ordermarkers && trimming && reordering
     else
-        if [ ! -d "iter.maps" ]; then
+        if [ ! -d "maps.splitchrom" ]; then
             echo "file "data_f.call.gz" detected, skipping ParentCall..."
             separatechromosomes && joinsingles && ordermarkers && trimming && reordering
         elif test -n "$(find ./ -maxdepth 1 -name 'map.*.master' -print -quit)"; then
@@ -320,7 +320,7 @@ if [ $# -eq 0 ]; then
                 trimming && reordering
             fi
         else
-            echo "directory "iter.maps" detected, skipping SeparateChromosomes..."
+            echo "directory "maps.splitchrom" detected, skipping SeparateChromosomes..."
             joinsingles && ordermarkers && trimming && reordering
         fi
     fi
@@ -334,7 +334,7 @@ LepMapp3r is a wrapper for LepMap3 (Rasta 2017) intended to link the modules tog
 ParentCall -> SeparateChromosomes -> JoinSingles -> OrderMarkers -> Trimming Ends -> Reordering
 
 By default, if you run LepMapp3r without arguments it will start at ParentCall and work through until the end. Ordering markers may take a while, so it is recommended to run LepMapp3r in a screen environment. LepMapp3r creates several folders during operation, and for safety, it is made to identify if these folders exist so as to skip that step and not overwrite data. Please remove or rename these folders as necessary to avoid unintentionally skipping steps: 
-iter.maps
+maps.splitchrom
 ordermarkers/best.trimmed 
 ordermarkers/bestlikelihoods
 ordermarkers.final/bestlikelihoods/trimmed
