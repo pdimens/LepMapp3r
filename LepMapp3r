@@ -136,7 +136,7 @@ ordermarkers(){
     export SCALEVAL
     export NUMITER
     runordermarkers() {
-        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP data=- numThreads=$THREADS $DISTMETHOD scale=$SCALEVAL chromosome=$2 > ordermarkers/ordered.$2.$1.txt
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP data=- numThreads=$THREADS $DISTMETHOD scale=$SCALEVAL chromosome=$2 > ordermarkers/ordered.$2.$1.txt &> order.log
     }
     export -f runordermarkers
     seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers {1} {2} ::: $(seq 1 $NUMITER) ::: $(seq 1 $NUMCHROM)
@@ -152,14 +152,12 @@ ordermarkers(){
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers/likelihoods.txt
         done
     done
+    sort ordermarkers/likelihoods.txt -k1,1 -k3,3nr > ordermarkers/likelihoods.sorted.txt
 }
 
 export -f ordermarkers
 
-# sort by linkage group and likelihood
 trimming(){    
-    sort ordermarkers/likelihoods.txt -k1,1 -k3,3nr > ordermarkers/likelihoods.sorted.txt
-
     # pull out best maps for each linkage group
     TOTALMAPS=$(cat ordermarkers/likelihoods.txt | wc -l)
     NUMITER=$(ls ordermarkers/ordered.1.*.txt | wc -l) 
@@ -228,7 +226,7 @@ reordering(){
             zcat data_f.call.gz | java $LM3PATH OrderMarkers2 evaluateOrder=$1\
             map=$DATAMAP \
             data=- numThreads=$THREADS $DISTMETHOD \
-            scale=$SCALEVAL > ordermarkers.final/$(echo "reordered.$(basename $1).$2.txt" | cut -d'.' -f1,4,7,8)
+            scale=$SCALEVAL > ordermarkers.final/$(echo "reordered.$(basename $1).$2.txt" | cut -d'.' -f1,4,7,8) &> reorder.log
     }
     export -f reordermarkers
     
@@ -274,7 +272,7 @@ reordering(){
     }
     
     export -f distancecalc
-    find ./ordermarkers.final/bestlikelihoods/trimmed -name "reordered*.txt" | parallel --progress --jobs $NUMJOBS distancecalc
+    find ./ordermarkers.final/bestlikelihoods/trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
 
 }
 
@@ -282,7 +280,7 @@ export -f reordering
 
 # Run everything
 if [ $# -eq 0 ]; then
-    LM3PATH=$(echo "-cp /bin/LM3")
+    LM3PATH="-cp /bin/LM3"
     echo -e "\n------------List of all files in directory------------"
     ls -p | grep -v /
     echo -e "------------------------------------------------------"
@@ -337,7 +335,7 @@ By default, if you run LepMapp3r without arguments it will start at ParentCall a
 iter.maps
 ordermarkers/best.trimmed 
 ordermarkers/bestlikelihoods
-ordermarkers.final/bestlikelihoods
+ordermarkers.final/bestlikelihoods/trimmed
 
                                 [Disclaimer] 
 LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
