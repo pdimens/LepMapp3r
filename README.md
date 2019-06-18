@@ -1,6 +1,6 @@
 ![LepMapp3r](https://github.com/pdimens/LepMapp3r/blob/master/LepMapp3r.png)
 #### Interactive bash wrapper for using LepMap3 to create linkage maps
-LepMapp3r is a wrapper for LepMap3 [(Rastas 2017)](https://academic.oup.com/bioinformatics/article/33/23/3726/4061277) intended to link the modules together into a single workflow. 
+LepMapp3r is a wrapper for LepMap3 [(Rastas 2017)](https://academic.oup.com/bioinformatics/article/33/23/3726/4061277) intended to link the modules together into a single workflow. Detailed information on installation and usage can be found on the [LepMapp3r Wiki](https://github.com/pdimens/LepMapp3r/wiki).
 
 ### Installation
 A simple installation script script has been provided to download and install `LepMap3`, `LepMapp3r`, and `LepMapp3rQA` onto a system in the correct `$PATH`. Intended for Unix-like systems, e.g. Linux. BSD, macOS.
