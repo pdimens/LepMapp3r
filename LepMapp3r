@@ -121,7 +121,7 @@ ordermarkers(){
     printf 'How many iterations per linkage group (>30 preferred)? '
     read -r NUMITER
     printf 'This step runs in parallel. The number of chromosomes being run at once must be <= number CPUs '
-    printf '\nHow many linkage groups would you like to order in parallel at once (max CPUs=%s)?  ' "$(nproc)"
+    printf '\nSubtract 1.5x from how many linkage groups you would like to order in parallel at once. i.e. if you input "10", it will use 15. (max CPUs=%s)?  ' "$(nproc)"
     read -r NUMJOBS
     THREADS=$(echo $(nproc) $NUMCHROM 1.5 | awk '{ printf("%.0f\n", $1/($2/$3)) }')
     NUMLOCI=$(tail -n +2 ./$DATAMAP | wc -l)
@@ -130,13 +130,16 @@ ordermarkers(){
     printf 'Data scaling will be set to %s based on %s markers and %s individuals\n' "$SCALEVAL" "$NUMLOCI" "$NUMINDS"
     echo -e "Depending on  the number of input CPUs iterations, this may take a WHILE. \nFeel free to detach the screen."
     mkdir -p ordermarkers/bestlikelihoods
+    mkdir -p ordermarkers/logs
+    DATAMAP="$(ls map.*.master)"
     export DATAMAP
     export THREADS
     export DISTMETHOD
     export SCALEVAL
     export NUMITER
     runordermarkers() {
-        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP data=- numThreads=$THREADS $DISTMETHOD scale=$SCALEVAL chromosome=$2 > ordermarkers/ordered.$2.$1.txt &> order.log
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 map=$DATAMAP data=- numThreads=$THREADS $DISTMETHOD scale=$SCALEVAL chromosome=$2 &> ordermarkers/logs/ordered.$2.$1.log
+        grep -A 100000 \*\*\*\ LG\ \= ordermarkers/logs/ordered.$2.$1.log > ordermarkers/ordered.$2.$1.txt
     }
     export -f runordermarkers
     seq 1 $NUMCHROM | parallel --jobs $NUMJOBS runordermarkers {1} {2} ::: $(seq 1 $NUMITER) ::: $(seq 1 $NUMCHROM)
@@ -148,7 +151,7 @@ ordermarkers(){
             do
             LG="ordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -2 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 25-) 
+            LIKELIHOOD=$(head -1 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 27-) 
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers/likelihoods.txt
         done
     done
@@ -186,6 +189,7 @@ export -f trimming
 # reorder the trimmed markers
 reordering(){
     mkdir -p ordermarkers.final/bestlikelihoods/trimmed
+    mkdir -p ordermarkers.final/logs
     printf "\nParentCall->SeparateChromosomes->JoinSingles->OrderMarkers->Trimming Ends->"
     printf "\033[01;33m" 
     printf " Reordering\n" 
@@ -223,10 +227,13 @@ reordering(){
     export NUMCHROM
     export NUMJOBS
     reordermarkers() {
+	    LOGFILE=$(echo "reordered.$(basename $1).$2.log" | cut -d'.' -f1,4,7,8)
+	    OUTFILE=$(echo "reordered.$(basename $1).$2.txt" | cut -d'.' -f1,4,7,8)
             zcat data_f.call.gz | java $LM3PATH OrderMarkers2 evaluateOrder=$1\
             map=$DATAMAP \
             data=- numThreads=$THREADS $DISTMETHOD \
-            scale=$SCALEVAL > ordermarkers.final/$(echo "reordered.$(basename $1).$2.txt" | cut -d'.' -f1,4,7,8) &> reorder.log
+            scale=$SCALEVAL &> ordermarkers.final/logs/$LOGFILE
+	    grep -A 100000 \*\*\*\ LG\ \= ordermarkers.final/logs/$LOGFILE > ordermarkers.final/$OUTFILE
     }
     export -f reordermarkers
     
@@ -239,7 +246,7 @@ reordering(){
             do
             LG="reordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -2 ordermarkers.final/reordered.$i.$j.txt | tail -1 | cut -c 25-) 
+            LIKELIHOOD=$(head -2 ordermarkers.final/reordered.$i.$j.txt | tail -1 | cut -c 27-) 
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers.final/reordered.likelihoods.txt
         done
     done
@@ -287,7 +294,7 @@ if [ $# -eq 0 ]; then
     ls -p | grep -v /
     echo -e "------------------------------------------------------"
     printf '\nWhat is the name of the pedigree file?  '
-        read -r PEDIGREE
+    read -r PEDIGREE
     if [ ! -f $PEDIGREE ]; then
         echo "Error: $PEDIGREE not found in working directory. Please check spelling." && exit 1
     fi
@@ -343,7 +350,7 @@ ordermarkers.final/bestlikelihoods/trimmed
 LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
 
                                  [Citation] 
-Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726–3732, https://doi.org/10.1093/bioinformatics/btx494
+Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726â3732, https://doi.org/10.1093/bioinformatics/btx494
 
 EOF
 fi
