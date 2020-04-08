@@ -246,7 +246,7 @@ reordering(){
             do
             LG="reordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -2 ordermarkers.final/reordered.$i.$j.txt | tail -1 | cut -c 27-) 
+            LIKELIHOOD=$(head -1 ordermarkers.final/reordered.$i.$j.txt cut -c 27-) 
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers.final/reordered.likelihoods.txt
         done
     done
@@ -350,7 +350,7 @@ ordermarkers.final/bestlikelihoods/trimmed
 LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
 
                                  [Citation] 
-Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726â3732, https://doi.org/10.1093/bioinformatics/btx494
+Pasi Rastas, Lep-MAP3: robust linkage mapping even for low-coverage whole genome sequencing data, Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3726–3732, https://doi.org/10.1093/bioinformatics/btx494
 
 EOF
 fi
