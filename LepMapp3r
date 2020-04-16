@@ -188,8 +188,8 @@ export -f trimming
     
 # reorder the trimmed markers
 reordering(){
-    mkdir -p ordermarkers.final/bestlikelihoods/trimmed
-    mkdir -p ordermarkers.final/logs
+    mkdir -p reordermarkers/bestlikelihoods/trimmed
+    mkdir -p reordermarkers/logs
     printf "\nParentCall->SeparateChromosomes->JoinSingles->OrderMarkers->Trimming Ends->"
     printf "\033[01;33m" 
     printf " Reordering\n" 
@@ -232,8 +232,8 @@ reordering(){
             zcat data_f.call.gz | java $LM3PATH OrderMarkers2 evaluateOrder=$1\
             map=$DATAMAP \
             data=- numThreads=$THREADS $DISTMETHOD \
-            scale=$SCALEVAL &> ordermarkers.final/logs/$LOGFILE
-	    grep -A 100000 \*\*\*\ LG\ \= ordermarkers.final/logs/$LOGFILE > ordermarkers.final/$OUTFILE
+            scale=$SCALEVAL &> reordermarkers/logs/$LOGFILE
+	    grep -A 100000 \*\*\*\ LG\ \= reordermarkers/logs/$LOGFILE > reordermarkers/$OUTFILE
     }
     export -f reordermarkers
     
@@ -246,41 +246,47 @@ reordering(){
             do
             LG="reordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -1 ordermarkers.final/reordered.$i.$j.txt cut -c 27-) 
-            echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers.final/reordered.likelihoods.txt
+            LIKELIHOOD=$(head -1 reordermarkers/$LG.$j.txt | cut -c 27-) 
+            echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> reordermarkers/reordered.likelihoods.txt
         done
     done
 
     # sort by linkage group and likelihood
-    sort ordermarkers.final/reordered.likelihoods.txt -k1,1 -k3,3nr > ordermarkers.final/reordered.likelihoods.sorted.txt
+    sort reordermarkers/reordered.likelihoods.txt -k1,1 -k3,3nr > reordermarkers/reordered.likelihoods.sorted.txt
 
     # pull out best maps for each linkage group
-    TOTALMAPS=$(cat ordermarkers.final/reordered.likelihoods.sorted.txt | wc -l)
+    TOTALMAPS=$(cat reordermarkers/reordered.likelihoods.sorted.txt | wc -l)
     echo "Finding best maps by likelihoods and removing markers with position 0..."
     echo "Best reordered maps:"
     for i in $(seq 1 $NUMITER $TOTALMAPS); 
         do
-        LIKELYMAP=$(sed -n ${i}p ordermarkers.final/reordered.likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
+        LIKELYMAP=$(sed -n ${i}p reordermarkers/reordered.likelihoods.sorted.txt | cut -f1,2 | awk '{print $0, $1 "." $NF}' | cut -d ' ' -f2)
         echo "$LIKELYMAP"
-        cp ordermarkers.final/$LIKELYMAP.txt ordermarkers.final/bestlikelihoods
-        # remove markers with position 0
-        sed '/\t0.000/d' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt > ./ordermarkers.final/bestlikelihoods/trimmed/$LIKELYMAP.txt
-        # append the trimmed markers to a log file
-        echo "Appending trimmed marker names to ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt"
-        sed -n '/\t0.000/p' ordermarkers.final/bestlikelihoods/$LIKELYMAP.txt  | cut -f1 >> ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt
+        cp reordermarkers/$LIKELYMAP.txt reordermarkers/bestlikelihoods
     done
-    ## merge all trimmed markers
-    cat ./ordermarkers/best.trimmed/bad.markers.txt ./ordermarkers.final/bestlikelihoods/trimmed/bad.markers2.txt > Trimmed.Markers.log
 
-    ## calculate map distance and sex specific map distance
-    mkdir -p final.distances
+    # trim markers with 2 zero positions
+    for i in reordermarkers/bestlikelihoods/reordered* ; do
+        # remove markers with position 0
+        FILE=$(basename $i)
+        sed '/0.000\t0.000/d' ./reordermarkers/bestlikelihoods/$FILE > reordermarkers/bestlikelihoods/trimmed/$FILE
+        # append the trimmed markers to a log file
+        sed -n '/0.000\t0.000/p' ./reordermarkers/bestlikelihoods/$FILE  | cut -f1 >> ./reordermarkers/bestlikelihoods/trimmed/bad.markers2.txt
+    done
+   
+    ## merge all trimmed markers
+    cat ./ordermarkers/best.trimmed/bad.markers.txt ./reordermarkers/bestlikelihoods/trimmed/bad.markers2.txt > Trimmed.Markers.log
+
+    ## calculate map distance, sex specific map distance, and intervals
+    mkdir -p distances distances_sexAveraged intervals
     distancecalc(){
-        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 $DISTMETHOD > final.distances/$(basename ${1%.txt}).distance
-        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 sexAveraged=1 $DISTMETHOD > final.distances/$(basename ${1%.txt}).sexdistance
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 $DISTMETHOD > distances/$(basename ${1%.txt}).distance
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  improveOrder=0 sexAveraged=1 $DISTMETHOD > distances_sexAveraged/$(basename ${1%.txt}).sexdistance
+        zcat data_f.call.gz | java $LM3PATH OrderMarkers2 data=- evaluateOrder=$1  calculateIntervals=intervals/$(basename ${1%.txt}).intervals $DISTMETHOD 
     }
     
     export -f distancecalc
-    find ./ordermarkers.final/bestlikelihoods/trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
+    find ./reordermarkers/bestlikelihoods/trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
 
     echo -e "\n LepMapp3r is all done! \n"
 }
@@ -320,7 +326,7 @@ if [ $# -eq 0 ]; then
             if [ ! -d "ordermarkers" ]; then
                 ordermarkers && trimming && reordering
             elif [ "$(ls -A "ordermarkers/best.trimmed" )" ]; then
-                echo "ordered maps in "odrdermarkers/best.trimmed" detected, skipping OrderMarkers..."
+                echo "ordered maps in "ordermarkers/best.trimmed" detected, skipping OrderMarkers..."
                 reordering
             else
                 echo "directory "ordermarkers" detected, skipping OrderMarkers..."
@@ -344,7 +350,7 @@ By default, if you run LepMapp3r without arguments it will start at ParentCall a
 maps.splitchrom
 ordermarkers/best.trimmed 
 ordermarkers/bestlikelihoods
-ordermarkers.final/bestlikelihoods/trimmed
+reordermarkers/bestlikelihoods/trimmed
 
                                 [Disclaimer] 
 LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
