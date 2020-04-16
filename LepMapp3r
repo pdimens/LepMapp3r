@@ -188,7 +188,7 @@ export -f trimming
     
 # reorder the trimmed markers
 reordering(){
-    mkdir -p reordermarkers/bestlikelihoods/trimmed
+    mkdir -p reordermarkers/bestlikelihoods reordermarkers/best.trimmed
     mkdir -p reordermarkers/logs
     printf "\nParentCall->SeparateChromosomes->JoinSingles->OrderMarkers->Trimming Ends->"
     printf "\033[01;33m" 
@@ -269,13 +269,13 @@ reordering(){
     for i in reordermarkers/bestlikelihoods/reordered* ; do
         # remove markers with position 0
         FILE=$(basename $i)
-        sed '/0.000\t0.000/d' ./reordermarkers/bestlikelihoods/$FILE > reordermarkers/bestlikelihoods/trimmed/$FILE
+        sed '/0.000\t0.000/d' ./reordermarkers/bestlikelihoods/$FILE > reordermarkers/best.trimmed/$FILE
         # append the trimmed markers to a log file
-        sed -n '/0.000\t0.000/p' ./reordermarkers/bestlikelihoods/$FILE  | cut -f1 >> ./reordermarkers/bestlikelihoods/trimmed/bad.markers2.txt
+        sed -n '/0.000\t0.000/p' ./reordermarkers/bestlikelihoods/$FILE  | cut -f1 >> ./reordermarkers/best.trimmed/bad.markers2.txt
     done
    
     ## merge all trimmed markers
-    cat ./ordermarkers/best.trimmed/bad.markers.txt ./reordermarkers/bestlikelihoods/trimmed/bad.markers2.txt > Trimmed.Markers.log
+    cat ./ordermarkers/best.trimmed/bad.markers.txt ./reordermarkers/best.trimmed/bad.markers2.txt > Trimmed.Markers.log
 
     ## calculate map distance, sex specific map distance, and intervals
     mkdir -p distances distances_sexAveraged intervals
@@ -286,7 +286,7 @@ reordering(){
     }
     
     export -f distancecalc
-    find ./reordermarkers/bestlikelihoods/trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
+    find ./reordermarkers/best.trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
 
     echo -e "\n LepMapp3r is all done! \n"
 }
@@ -350,7 +350,7 @@ By default, if you run LepMapp3r without arguments it will start at ParentCall a
 maps.splitchrom
 ordermarkers/best.trimmed 
 ordermarkers/bestlikelihoods
-reordermarkers/bestlikelihoods/trimmed
+reordermarkers/best.trimmed
 
                                 [Disclaimer] 
 LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
