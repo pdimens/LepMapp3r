@@ -6,15 +6,9 @@ if [[ -z "$1" ]]; then
     exit
 fi
 
-#rm -r bedfiles oriented cleanMap.input LepAnchor_snps.txt map.clean *.sizes intervals/LepAnchor_input
+rm -r bedfiles oriented cleanMap.input LepAnchor_snps.txt map.clean *.sizes intervals/LepAnchor_input
 
 # generate the snp file
-#echo -e "\n---.gz files in working dir---\n"
-#ls *.gz 
-#echo -e "\n------------------------------"
-#echo -ne "\nWhat is the name of the data.gz file? "
-#read
-#zcat ${REPLY} | awk '(NR>=7){print $1"\t"$2}' > LepAnchor_snps.txt
 zcat data_f.call.gz | awk '(NR>=7){print $1"\t"$2}' > LepAnchor_snps.txt
 
 # generate CleanMap input
@@ -23,10 +17,10 @@ ls map.*.master
 echo -e "\n--------------------------------------"
 echo -ne "\nWhat is the name of the map file? "
 read
-paste LepAnchor_snps.txt ${REPLY} > cleanMap.input
 # add "#" sign at the beginning of the file
-echo -n "#" | cat - cleanMap.input > cleanMap.input.corr
-#sed 's/chrom  pos/#chrom      pos/g' cleanMap.input > cleanMap.input.corr
+echo -n "#" > cleanMap.input
+paste LepAnchor_snps.txt ${REPLY} >> cleanMap.input
+#echo -n "#" | cat - cleanMap.input > cleanMap.input.corr
 
 # get contig sizes
 echo -ne "\n1) Calculating contig sizes from $(basename $1)....."
@@ -35,7 +29,7 @@ awk -f /bin/contigLength.awk $1 > $(basename $1).sizes && echo "done!"
 # make the bed files
 mkdir -p bedfiles
 echo -ne "\n2) Using CleanMap module on generated mapfile....."
-java -cp /bin CleanMap map=cleanMap.input.corr > map.clean 2>/dev/null && echo "done!"
+java -cp /bin CleanMap map=cleanMap.input > map.clean 2>/dev/null && echo "done!"
 echo -ne "\n3) Using Map2Bed module to convert cleaned mapfile....." 
 java -cp /bin Map2Bed map=map.clean contigLength=$(basename $1).sizes > bedfiles/map.bed  && echo "done!"
 
@@ -54,5 +48,3 @@ do
     #java -cp /bin PlaceAndOrientContigs map=order.$i.m.input bed=bedfiles/map.bed noIntervals=1 ...
 
 done && echo "done!"
-
-
