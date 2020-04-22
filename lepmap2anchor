@@ -6,7 +6,7 @@ if [[ -z "$1" ]]; then
     exit
 fi
 
-rm -r ./LepAnchor_input
+#rm -r ./LepAnchor
 mkdir -p LepAnchor/{bedfiles,intervals,oriented}
 
 # generate the snp file
