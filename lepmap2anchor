@@ -1,4 +1,5 @@
 #! /usr/bin/env bash
+# Written by Pavel Dimens. Conversion functions originally written by Pasi Rastas and are avaialable at https://sourceforge.net/p/lep-anchor/wiki/Home/
 
 if [[ -z "$1" ]]; then
     echo -e "\nThis script will create Lep-Anchor inputs from LepMap3 output files.\nRequires the reference genome as the only argument."
