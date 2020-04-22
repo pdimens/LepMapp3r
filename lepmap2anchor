@@ -3,7 +3,7 @@
 
 if [[ -z "$1" ]]; then
     echo -e "\nThis script will create Lep-Anchor inputs from LepMap3 output files.\nRequires the reference genome as the only argument."
-    echo -e "\n [usage]: lepmap2anchor.sh genome.fasta"
+    echo -e "\n [usage]: lepmap2anchor genome.fasta"
     exit
 fi
 
