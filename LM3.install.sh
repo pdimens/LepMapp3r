@@ -10,7 +10,7 @@ echo "Copying files to PATH locations..."
 mkdir LM3
 chmod +x ./*
 cp ./bin/* LepMapp3rQA.r LM3
-sudo mv LM3 LepMapp3r lepmap2allmaps /bin
+sudo cp -r LM3 LepMapp3r lepmap2allmaps /bin
 
 echo "[Installation summary]"
 echo -e "Location\tFile"
