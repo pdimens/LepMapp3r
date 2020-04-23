@@ -11,7 +11,6 @@ pdf(file=PDFPath, height = 11, width = 8.5)
 par(mfrow=(c(4,2))) # create 4x2 plots
 
 ##### Pruning the ends #####
-path <- setwd(getwd())
 for(i in file.names){  
   lgfile <- read.delim(
               paste(path,i, sep = "/"), 
