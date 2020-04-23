@@ -256,7 +256,7 @@ reordering(){
 
     # pull out best maps for each linkage group
     TOTALMAPS=$(cat reordermarkers/reordered.likelihoods.sorted.txt | wc -l)
-    echo "Finding best maps by likelihoods and removing markers with position 0..."
+    echo "Finding best maps by likelihoods"
     echo "Best reordered maps:"
     for i in $(seq 1 $NUMITER $TOTALMAPS); 
         do
@@ -266,16 +266,18 @@ reordering(){
     done
 
     # trim markers with 2 zero positions
-    for i in reordermarkers/bestlikelihoods/reordered* ; do
+    ## REMOVED
+    #for i in reordermarkers/bestlikelihoods/reordered* ; do
         # remove markers with position 0
-        FILE=$(basename $i)
-        sed '/0.000\t0.000/d' ./reordermarkers/bestlikelihoods/$FILE > reordermarkers/best.trimmed/$FILE
+    #FILE=$(basename $i)
+    #    sed '/0.000\t0.000/d' ./reordermarkers/bestlikelihoods/$FILE > reordermarkers/best.trimmed/$FILE
         # append the trimmed markers to a log file
-        sed -n '/0.000\t0.000/p' ./reordermarkers/bestlikelihoods/$FILE  | cut -f1 >> ./reordermarkers/best.trimmed/bad.markers2.txt
-    done
+    #    sed -n '/0.000\t0.000/p' ./reordermarkers/bestlikelihoods/$FILE  | cut -f1 >> ./reordermarkers/best.trimmed/bad.markers2.txt
+    #done
    
     ## merge all trimmed markers
-    cat ./ordermarkers/best.trimmed/bad.markers.txt ./reordermarkers/best.trimmed/bad.markers2.txt > Trimmed.Markers.log
+    #cat ./ordermarkers/best.trimmed/bad.markers.txt ./reordermarkers/best.trimmed/bad.markers2.txt > Trimmed.Markers.log
+    cat ./ordermarkers/best.trimmed/bad.markers.txt > Trimmed.Markers.log
 
     ## calculate map distance, sex specific map distance, and intervals
     mkdir -p distances distances_sexAveraged intervals
@@ -286,7 +288,7 @@ reordering(){
     }
     
     export -f distancecalc
-    find ./reordermarkers/best.trimmed -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
+    find ./reordermarkers/bestlikelihoods -maxdepth 1 -name "reordered.*.txt" | parallel --jobs $NUMJOBS distancecalc &> distance.log
 
     echo -e "\n LepMapp3r is all done! \n"
 }
@@ -350,7 +352,7 @@ By default, if you run LepMapp3r without arguments it will start at ParentCall a
 maps.splitchrom
 ordermarkers/best.trimmed 
 ordermarkers/bestlikelihoods
-reordermarkers/best.trimmed
+reordermarkers/bestlikelihoods
 
                                 [Disclaimer] 
 LepMap3 is a very comprehensive software, and LepMapp3r does not incorporate all the features and nuances within the various modules. Your study is unique, so you are encouraged to fork the GitHub repo and adapt LepMapp3r to your needs! If using LepMapp3r and publishing, cite Pasi Rastas for his work on LepMap3, and if you like using it, give Pavel Dimens a shout out on Twitter @pvdimens =)
