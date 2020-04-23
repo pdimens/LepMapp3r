@@ -9,19 +9,19 @@ file.names <- file.names[order(nchar(file.names), file.names)] #sort by LG
 PDFPath <- paste(path, "trimming.plots.pdf", sep = "/")
 pdf(file=PDFPath, height = 11, width = 8.5) 
 par(mfrow=(c(4,2))) # create 4x2 plots
-par(mar=c(3,4.3,2,1)+0.1)  # reduce the padding somewhat
 
 ##### Pruning the ends #####
-
+path <- setwd(getwd())
 for(i in file.names){  
-  lgfile <- read.delim(paste(path,i, sep = "/"), 
-                       header = FALSE, 
-                       sep = "\t", 
-                       comment.char="#"
-  )
-  passing_markers <- lgfile %>% filter(V2 != 0) %>% filter(V3 != 0)  # remove any markers at position 0
+  lgfile <- read.delim(
+              paste(path,i, sep = "/"), 
+              header = FALSE, 
+              sep = "\t", 
+              comment.char="#"
+            )
+  passing_markers <- lgfile
   trimmed_markers <- lgfile
-
+  
   for (j in 2:3){   # iterate over male (2) and female (3)
     # trim beginning
     filelength15 <- length(passing_markers$V1) * 0.15
@@ -50,27 +50,29 @@ for(i in file.names){
     cleaned_markers <- passing_markers %>% filter(V4 != "NA")  
     
     # diagnostic plots
+    par(mar=c(3,4.3,2,1)+0.1)  # reduce the padding somewhat
     just_ordernum <- tools::file_path_sans_ext(i)  # remove the extension from files for plots
     if( j==2 ){
-      plot( x = lgfile[,j], 
-            type = "n",
+      plot( x = lgfile[,2], 
+            bty="n",
             main = "Male",
+            col = "slategray", 
+            cex = 1.5,
             ylab = paste(just_ordernum, "distance"),
             cex.lab = 1.8,
             xlab = "",
-            pch = 19
       )
-      points(cleaned_markers[,j], col = "slategray", pch = 19, cex = 2)  # plot good markers
-      points(trimmed_markers[,j], col = "coral3", pch = 18, cex = 3 )   # plot bad markers
+      points(trimmed_markers[,j], col = "coral3", pch = 19, cex = .8 )   # plot bad markers
     } else {
       plot( x = lgfile[,j], 
-            type = "n", 
+            bty="n",
+            col = "slategray", 
+            cex = 1.5,
             main = "Female",
             ylab = "",
             xlab = ""
       )
-      points(cleaned_markers[,j], col = "slategray", pch = 19, cex = 2)
-      points(trimmed_markers[,j], col = "coral3", pch = 18, cex = 3 )
+      points(trimmed_markers[,j], col = "coral3", pch = 19, cex = .8 )
     }
  
   }
