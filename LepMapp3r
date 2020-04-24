@@ -182,6 +182,11 @@ trimming(){
     mkdir -p ./ordermarkers/best.trimmed
     Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH > Trimming.log
     mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/bestlikelihoods/trimming.plots.pdf ./ordermarkers/best.trimmed
+    # create a log of the number of markers per LG
+    for i in ordermarkers/best.trimmed/trimmed*.txt ; do
+        MARKERCOUNT=$(($(cat $i | wc -l)-2))
+        echo -e "$(basename $i)\t$MARKERCOUNT" >> ordermarkers/best.trimmed/markercount.log
+    done
 }    
 
 export -f trimming
