@@ -181,7 +181,7 @@ trimming(){
     read -r TRIMTHRESH
     mkdir -p ./ordermarkers/best.trimmed
     Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH > Trimming.log
-    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/best.trimmed
+    mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/bestlikelihoods/trimming.plots.pdf ./ordermarkers/best.trimmed
 }    
 
 export -f trimming
