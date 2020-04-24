@@ -180,7 +180,7 @@ trimming(){
     printf '\nAt what map distance cutoff would you like to trim end-clusters of markers? (10 is conservative)? '
     read -r TRIMTHRESH
     mkdir -p ./ordermarkers/best.trimmed
-    Rscript /bin/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH > Trimming.log
+    Rscript /bin/LM3/LepMapp3rQA.r $(pwd)/ordermarkers/bestlikelihoods ordered $TRIMTHRESH > Trimming.log
     mv ./ordermarkers/bestlikelihoods/trimmed* ./ordermarkers/bestlikelihoods/bad.markers.txt ./ordermarkers/bestlikelihoods/trimming.plots.pdf ./ordermarkers/best.trimmed
     # create a log of the number of markers per LG
     for i in ordermarkers/best.trimmed/trimmed*.txt ; do
