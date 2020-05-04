@@ -8,6 +8,7 @@ path = args[1]
 setwd(args[1])
 file.names <- dir(path, pattern = args[2])
 file.names <- file.names[order(nchar(file.names), file.names)] #sort by LG
+no_rm <- c()
 PDFPath <- paste(path, "trimming.plots.pdf", sep = "/")
 pdf(file=PDFPath, height = 11, width = 8.5) 
 par(mfrow=(c(4,2))) # create 4x2 plots
@@ -78,6 +79,7 @@ for(i in file.names){
   
   # outputting filtered files
   filename<- paste("trimmed",i, sep=".")
+  no_rm <- c(no_rm, length(removed_markers))
   print(paste("Removing",length(removed_markers),"markers from",i , "and writing new file", filename, sep = " "))
   writeLines(readLines(i, n=3),con = filename)
   write.table(cleaned_markers[,1:5], 
@@ -97,4 +99,14 @@ for(i in file.names){
               col.names = FALSE
   )
 }
+trimlog <- data.frame(file = file.names, no_removed = no_rm)
+write.table(
+  trimlog,
+  file=paste(path, "best.trimmed/trimming.log", sep = "/"),
+  append=FALSE, 
+  sep = "\t", 
+  quote = FALSE, 
+  row.names = FALSE, 
+  col.names = TRUE
+)
 suppressMessages(dev.off())
