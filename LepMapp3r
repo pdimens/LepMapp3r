@@ -151,11 +151,11 @@ ordermarkers(){
             do
             LG="ordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -1 ordermarkers/ordered.$i.$j.txt | tail -1 | cut -c 27-) 
+            LIKELIHOOD=$(cat ordermarkers/ordered.$i.$j.txt | grep "likelihood = " | cut -d " " -f7) 
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> ordermarkers/likelihoods.txt
         done
     done
-    sort ordermarkers/likelihoods.txt -k1,1 -k3,3nr > ordermarkers/likelihoods.sorted.txt
+    sort ordermarkers/likelihoods.txt -k1,1V -k3,3nr > ordermarkers/likelihoods.sorted.txt
 }
 
 export -f ordermarkers
@@ -251,13 +251,13 @@ reordering(){
             do
             LG="reordered.$i"
             ITERUN="$j"
-            LIKELIHOOD=$(head -1 reordermarkers/$LG.$j.txt | cut -c 27-) 
+	    LIKELIHOOD=$(cat reordermarkers/$LG.$j.txt | grep "likelihood = " | cut -d " " -f7)
             echo -e "$LG\t$ITERUN\t$LIKELIHOOD" >> reordermarkers/reordered.likelihoods.txt
         done
     done
 
     # sort by linkage group and likelihood
-    sort reordermarkers/reordered.likelihoods.txt -k1,1 -k3,3nr > reordermarkers/reordered.likelihoods.sorted.txt
+    sort reordermarkers/reordered.likelihoods.txt -k1,1V -k3,3nr > reordermarkers/reordered.likelihoods.sorted.txt
 
     # pull out best maps for each linkage group
     TOTALMAPS=$(cat reordermarkers/reordered.likelihoods.sorted.txt | wc -l)
